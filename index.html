@@ -39,12 +39,24 @@
 
     <!-- Detail panel -->
     <aside id="detail-panel" class="detail-panel" aria-hidden="true" tabindex="-1">
-      <button id="panel-close" class="panel-close" aria-label="Close panel">&times;</button>
 
-      <!-- Site name -->
+      <!-- Sticky header: title + close btn in one row -->
       <div class="panel-header">
-        <h2 id="panel-title"></h2>
-        <p id="panel-area" class="panel-area"></p>
+        <div class="panel-header-text">
+          <h2 id="panel-title"></h2>
+          <p id="panel-area" class="panel-area"></p>
+        </div>
+        <button id="panel-close" class="panel-close" aria-label="Close panel">&times;</button>
+      </div>
+
+      <!-- Get Directions button -->
+      <div class="directions-bar">
+        <a id="directions-btn" href="#" target="_blank" rel="noopener" class="directions-btn">
+          <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          Get Directions
+        </a>
       </div>
 
       <!-- Photo slideshow -->
@@ -59,6 +71,18 @@
       <div class="panel-section" id="section-desc">
         <h3 class="section-label">About This Site</h3>
         <p id="panel-description"></p>
+      </div>
+
+      <!-- Accessibility -->
+      <div class="panel-section" id="section-access">
+        <h3 class="section-label">Accessibility &amp; Amenities</h3>
+        <div id="access-content"></div>
+      </div>
+
+      <!-- YouTube video -->
+      <div class="panel-section" id="section-video">
+        <h3 class="section-label">🎬 How to Bird Here</h3>
+        <div id="youtube-wrap" class="youtube-wrap"></div>
       </div>
 
       <!-- eBird data -->

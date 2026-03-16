@@ -45,9 +45,10 @@ const map = L.map('map', {
   zoomControl: true,
 });
 
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-  attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-  maxZoom: 19,
+// Stadia Alidade Smooth — clean, muted, nature-friendly basemap (free, no API key)
+L.tileLayer('https://tiles.stadiamaps.com/tiles/alidade_smooth/{z}/{x}/{y}{r}.png', {
+  attribution: '&copy; <a href="https://stadiamaps.com/">Stadia Maps</a> &copy; <a href="https://openmaptiles.org/">OpenMapTiles</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+  maxZoom: 20,
 }).addTo(map);
 
 // Custom marker icon
@@ -288,21 +289,67 @@ function openPanel(site) {
   panelTitle.textContent = site.sitename || site.name || 'Unnamed Site';
   panelArea.textContent  = site.area     || '';
 
-  // Description — CSV column is "desc"
+  // Description
   const description = site.desc || site.description || '';
   panelDesc.textContent = description;
   document.getElementById('section-desc').style.display = description ? '' : 'none';
 
-  // Photos — pipe-separated paths under data/img/
+  // Get Directions button
+  const lat = parseFloat(site.lat);
+  const lng = parseFloat(site.lng);
+  const directionsBtn = document.getElementById('directions-btn');
+  if (!isNaN(lat) && !isNaN(lng)) {
+    directionsBtn.href = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`;
+    directionsBtn.style.display = '';
+  } else {
+    directionsBtn.style.display = 'none';
+  }
+
+  // Photos
   const rawPhotos = site.photos || '';
   const photos = rawPhotos.split('|').map(s => s.trim()).filter(Boolean);
-
   if (photos.length) {
     buildSlideshow(photos);
     slideshowWrap.style.display = '';
   } else {
     slideshowWrap.style.display = 'none';
   }
+
+  // YouTube video
+  const sectionVideo = document.getElementById('section-video');
+  const youtubeWrap  = document.getElementById('youtube-wrap');
+  const youtubeId    = (site.youtube_id || '').trim();
+  if (youtubeId && !youtubeId.startsWith('PLACEHOLDER')) {
+    youtubeWrap.innerHTML = `
+      <iframe
+        src="https://www.youtube.com/embed/${youtubeId}"
+        title="How to bird at ${site.sitename}"
+        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+        allowfullscreen
+        loading="lazy">
+      </iframe>`;
+    sectionVideo.style.display = '';
+  } else {
+    sectionVideo.style.display = 'none';
+  }
+
+  // Accessibility
+  const sectionAccess = document.getElementById('section-access');
+  const accessContent = document.getElementById('access-content');
+  const accessText = (site.accessibility || '').trim();
+  if (accessText && !accessText.startsWith('PLACEHOLDER')) {
+    accessContent.textContent = accessText;
+  } else {
+    accessContent.innerHTML = `
+      <ul class="access-list">
+        <li><span class="access-icon">🅿️</span> <span class="access-label">Parking:</span> PLACEHOLDER</li>
+        <li><span class="access-icon">♿</span> <span class="access-label">Wheelchair Access:</span> PLACEHOLDER</li>
+        <li><span class="access-icon">🚻</span> <span class="access-label">Restrooms:</span> PLACEHOLDER</li>
+        <li><span class="access-icon">🥾</span> <span class="access-label">Terrain:</span> PLACEHOLDER</li>
+        <li><span class="access-icon">🐕</span> <span class="access-label">Dogs Allowed:</span> PLACEHOLDER</li>
+      </ul>`;
+  }
+  sectionAccess.style.display = '';
 
   // eBird
   const hotspotId = (site.ebird_hotspot_id || '').trim();

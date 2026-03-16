@@ -147,53 +147,56 @@ a:hover { text-decoration: underline; }
 
 .detail-panel.open { width: var(--panel-w); }
 
-/* ─── PANEL CLOSE ────────────────────────────── */
-.panel-close {
-  position: sticky;
-  top: 0;
-  float: right;
-  background: var(--forest);
-  border: none;
-  font-size: 1.4rem;
-  line-height: 1;
-  color: var(--cream);
-  cursor: pointer;
-  width: 32px;
-  height: 32px;
-  border-radius: 0 0 0 6px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 20;
-  transition: background var(--transition);
-  margin-left: auto;
-}
-.panel-close:hover { background: var(--moss); }
-
-/* ─── PANEL HEADER ───────────────────────────── */
+/* ─── PANEL HEADER (sticky, contains close btn + title) ─ */
 .panel-header {
   background: var(--forest);
   color: var(--cream);
-  padding: 0.6rem 1.4rem 1rem 1.4rem;
-  margin-top: -32px; /* tuck behind sticky close btn */
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  padding: 0.85rem 0.85rem 0.9rem 1.4rem;
 }
+
+.panel-header-text { flex: 1; min-width: 0; }
 
 .panel-header h2 {
   font-family: 'Playfair Display', serif;
-  font-size: 1.3rem;
+  font-size: 1.25rem;
   font-weight: 700;
   line-height: 1.2;
-  padding-top: 0.3rem;
 }
 
 .panel-area {
-  font-size: 0.78rem;
+  font-size: 0.75rem;
   font-weight: 600;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--sand);
   margin-top: 0.2rem;
 }
+
+/* ─── PANEL CLOSE ────────────────────────────── */
+.panel-close {
+  flex-shrink: 0;
+  background: rgba(255,255,255,0.15);
+  border: none;
+  font-size: 1.3rem;
+  line-height: 1;
+  color: var(--cream);
+  cursor: pointer;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background var(--transition);
+  margin-top: 1px;
+}
+.panel-close:hover { background: rgba(255,255,255,0.28); }
 
 /* ─── SLIDESHOW ──────────────────────────────── */
 .slideshow-wrap {
@@ -283,7 +286,90 @@ a:hover { text-decoration: underline; }
   color: var(--text);
 }
 
-/* ─── EBIRD SECTION ──────────────────────────── */
+/* ─── DIRECTIONS BAR ─────────────────────────── */
+.directions-bar {
+  padding: 0.6rem 1.4rem;
+  background: var(--cream);
+  border-bottom: 1px solid rgba(45,74,45,0.12);
+}
+
+.directions-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  background: var(--forest-mid);
+  color: var(--cream);
+  font-family: 'Source Sans 3', sans-serif;
+  font-size: 0.85rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  text-decoration: none;
+  transition: background var(--transition), transform var(--transition), box-shadow var(--transition);
+  box-shadow: 0 2px 6px rgba(45,74,45,0.2);
+}
+
+.directions-btn svg {
+  width: 15px;
+  height: 15px;
+  flex-shrink: 0;
+}
+
+.directions-btn:hover {
+  background: var(--forest);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 10px rgba(45,74,45,0.3);
+  text-decoration: none;
+}
+
+/* ─── YOUTUBE EMBED ──────────────────────────── */
+.youtube-wrap {
+  width: 100%;
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: #000;
+  aspect-ratio: 16 / 9;
+}
+
+.youtube-wrap iframe {
+  width: 100%;
+  height: 100%;
+  border: none;
+  display: block;
+}
+
+/* ─── ACCESSIBILITY SECTION ──────────────────── */
+.access-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.access-list li {
+  display: flex;
+  align-items: baseline;
+  gap: 0.4rem;
+  font-size: 0.87rem;
+  line-height: 1.4;
+  color: var(--text);
+}
+
+.access-icon {
+  font-size: 0.95rem;
+  flex-shrink: 0;
+  width: 1.4rem;
+  text-align: center;
+}
+
+.access-label {
+  font-weight: 600;
+  color: var(--forest-mid);
+  flex-shrink: 0;
+}
+
+
 .ebird-loading {
   display: flex;
   align-items: center;
