@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Where to Bird in Kitsap County</title>
+
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,500;0,700;1,500&family=Source+Sans+3:wght@300;400;600&display=swap" rel="stylesheet" />
+
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <!-- ======= HEADER BAR ======= -->
+  <header class="site-header">
+    <div class="header-inner">
+      <div class="header-logo">
+        <img
+          src="https://images.squarespace-cdn.com/content/v1/57fbf392c534a5380773516e/1479573140587-5J7AFR7EZBEWE54SZGFJ/Kingfisher+Logo+for+favicon.jpg"
+          alt="Kitsap Audubon Society"
+          class="logo-img"
+        />
+        <span class="logo-text">Where to Bird in Kitsap County</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- ======= MAIN LAYOUT ======= -->
+  <main class="map-layout">
+
+    <!-- Map -->
+    <div id="map"></div>
+
+    <!-- Detail panel -->
+    <aside id="detail-panel" class="detail-panel" aria-hidden="true" tabindex="-1">
+      <button id="panel-close" class="panel-close" aria-label="Close panel">&times;</button>
+
+      <!-- Site name -->
+      <div class="panel-header">
+        <h2 id="panel-title"></h2>
+        <p id="panel-area" class="panel-area"></p>
+      </div>
+
+      <!-- Photo slideshow -->
+      <div class="slideshow-wrap" id="slideshow-wrap">
+        <div id="slideshow" class="slideshow"></div>
+        <button class="slide-btn slide-prev" id="slide-prev" aria-label="Previous photo">&#8592;</button>
+        <button class="slide-btn slide-next" id="slide-next" aria-label="Next photo">&#8594;</button>
+        <div id="slide-dots" class="slide-dots"></div>
+      </div>
+
+      <!-- Description -->
+      <div class="panel-section" id="section-desc">
+        <h3 class="section-label">About This Site</h3>
+        <p id="panel-description"></p>
+      </div>
+
+      <!-- eBird data -->
+      <div class="panel-section" id="section-ebird">
+        <h3 class="section-label">eBird Highlights</h3>
+
+        <div class="ebird-loading" id="ebird-loading">
+          <div class="spinner"></div>
+          <span>Loading sightings…</span>
+        </div>
+
+        <div id="ebird-content" class="ebird-content" style="display:none">
+
+          <!-- Recent Rarities -->
+          <div class="ebird-block" id="block-rarities">
+            <h4 class="ebird-block-title">🔴 Recent Rarities</h4>
+            <ul id="list-rarities" class="ebird-list"></ul>
+          </div>
+
+          <!-- Iconic / Notable Species -->
+          <div class="ebird-block" id="block-notable">
+            <h4 class="ebird-block-title">⭐ Notable Species</h4>
+            <ul id="list-notable" class="ebird-list"></ul>
+          </div>
+
+          <!-- High Counts -->
+          <div class="ebird-block" id="block-highcount">
+            <h4 class="ebird-block-title">📊 High Counts (Last 30 Days)</h4>
+            <ul id="list-highcount" class="ebird-list"></ul>
+          </div>
+
+          <!-- Recent Sightings -->
+          <div class="ebird-block" id="block-recent">
+            <h4 class="ebird-block-title">🕐 Most Recent Sightings</h4>
+            <ul id="list-recent" class="ebird-list"></ul>
+          </div>
+
+        </div>
+
+        <div id="ebird-none" style="display:none" class="ebird-none">
+          No recent eBird data found for this location.
+        </div>
+
+        <a id="ebird-link" href="#" target="_blank" rel="noopener" class="ebird-external-link" style="display:none">
+          View full hotspot on eBird ↗
+        </a>
+      </div>
+
+    </aside>
+  </main>
+
+  <!-- ======= FOOTER ======= -->
+  <footer class="site-footer">
+    <p>© <span id="footer-year"></span> Kitsap Audubon Society &nbsp;·&nbsp; Bird data from <a href="https://ebird.org" target="_blank" rel="noopener">eBird</a> / Cornell Lab of Ornithology</p>
+  </footer>
+
+  <!-- Leaflet JS -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <!-- PapaParse -->
+  <script src="https://unpkg.com/papaparse@5.4.1/papaparse.min.js"></script>
+
+  <script src="main.js"></script>
+</body>
+</html>
