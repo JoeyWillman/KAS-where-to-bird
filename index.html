@@ -24,6 +24,24 @@
   <!-- MAP + PANEL -->
   <main class="map-layout">
 
+    <!-- Rarities drawer (left side, shown when toggle is active) -->
+    <aside id="rarities-drawer" class="rarities-drawer" aria-hidden="true">
+      <div class="rarities-drawer-header">
+        <div class="rarities-drawer-title">
+          <span class="layer-dot layer-dot--rarity" style="opacity:1; width:10px; height:10px;"></span>
+          <h2>Kitsap County Rarities</h2>
+        </div>
+        <div id="rarities-drawer-meta" class="rarities-drawer-meta"></div>
+      </div>
+      <div id="rarities-drawer-loading" class="rarities-drawer-loading">
+        <div class="spinner"></div><span>Loading rarities…</span>
+      </div>
+      <ul id="rarities-drawer-list" class="rarities-drawer-list"></ul>
+      <p id="rarities-drawer-empty" class="rarities-drawer-empty" style="display:none">
+        No rarities reported in Kitsap County for this time period.
+      </p>
+    </aside>
+
     <div id="map"></div>
 
     <aside id="detail-panel" class="detail-panel" aria-hidden="true" tabindex="-1">

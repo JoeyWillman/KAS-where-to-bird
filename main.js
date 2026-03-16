@@ -71,6 +71,73 @@ let layerDays      = 7;
 let rarityCache    = { data: null, days: null };
 
 // ─────────────────────────────────────────────
+//  RARITIES DRAWER
+// ─────────────────────────────────────────────
+const raritiesDrawer = document.getElementById('rarities-drawer');
+
+function openRaritiesDrawer() {
+  raritiesDrawer.classList.add('open');
+  raritiesDrawer.setAttribute('aria-hidden', 'false');
+}
+
+function closeRaritiesDrawer() {
+  raritiesDrawer.classList.remove('open');
+  raritiesDrawer.setAttribute('aria-hidden', 'true');
+}
+
+function renderRaritiesDrawer(rarities, days) {
+  const list    = document.getElementById('rarities-drawer-list');
+  const empty   = document.getElementById('rarities-drawer-empty');
+  const loading = document.getElementById('rarities-drawer-loading');
+  const meta    = document.getElementById('rarities-drawer-meta');
+
+  loading.style.display = 'none';
+  meta.textContent = `${rarities.length} sighting${rarities.length !== 1 ? 's' : ''} · last ${days} day${days !== 1 ? 's' : ''}`;
+
+  list.innerHTML = '';
+
+  if (!rarities.length) {
+    empty.style.display = '';
+    return;
+  }
+  empty.style.display = 'none';
+
+  rarities.forEach(obs => {
+    const li = document.createElement('li');
+    li.className = 'rarity-row';
+
+    const count = obs.howMany
+      ? `<span class="rarity-row-count">${Number(obs.howMany).toLocaleString()}</span>` : '';
+    const date = obs.obsDt
+      ? `<span class="rarity-row-date">${formatDate(obs.obsDt)}</span>` : '';
+    const loc = obs.locName
+      ? `<span class="rarity-row-loc">📍 ${obs.locName}</span>` : '';
+
+    li.innerHTML = `
+      <div class="rarity-row-name">${obs.comName}</div>
+      <div class="rarity-row-sci">${obs.sciName}</div>
+      <div class="rarity-row-meta">${loc}${count}${date}</div>`;
+
+    // Clicking a row pans map to that marker and opens its popup
+    if (obs.lat && obs.lng) {
+      li.addEventListener('click', () => {
+        map.setView([obs.lat, obs.lng], 13, { animate: true });
+        // Find and open the matching rarity marker popup
+        rarityLayer.eachLayer(marker => {
+          const ll = marker.getLatLng();
+          if (Math.abs(ll.lat - obs.lat) < 0.0001 && Math.abs(ll.lng - obs.lng) < 0.0001) {
+            marker.openPopup();
+          }
+        });
+      });
+    }
+
+    list.appendChild(li);
+  });
+}
+
+
+// ─────────────────────────────────────────────
 //  MAP LAYER TOGGLE CONTROLS (injected into map)
 // ─────────────────────────────────────────────
 const layerControlDiv = L.DomUtil.create('div', 'map-layer-controls');
@@ -98,8 +165,11 @@ new LayerControl().addTo(map);
 //  FETCH COUNTY-WIDE LAYER DATA
 // ─────────────────────────────────────────────
 async function fetchRarities(days) {
-  const status = document.getElementById('layer-status');
-  status.style.display = '';
+  const status  = document.getElementById('layer-status');
+  const loading = document.getElementById('rarities-drawer-loading');
+  status.style.display  = '';
+  loading.style.display = '';
+
   try {
     const res = await fetch(
       `${EBIRD_BASE}/data/obs/${KITSAP_REGION}/recent/notable?maxResults=100&back=${days}&detail=full`,
@@ -114,12 +184,15 @@ async function fetchRarities(days) {
       seenR.add(key); return true;
     });
     rarityCache = { data: rarities, days };
+    renderRaritiesDrawer(rarities, days);
     return rarities;
   } catch (err) {
     console.error('Rarity fetch failed:', err);
+    renderRaritiesDrawer([], days);
     return [];
   } finally {
-    status.style.display = 'none';
+    status.style.display  = 'none';
+    loading.style.display = 'none';
   }
 }
 
@@ -153,17 +226,24 @@ async function refreshLayers(days) {
   const rarities = await fetchRarities(days);
   renderRarityLayer(rarities);
 }
-
 document.getElementById('toggle-rarities').addEventListener('click', async () => {
   rarityLayerOn = !rarityLayerOn;
   document.getElementById('toggle-rarities').classList.toggle('active', rarityLayerOn);
+
   if (rarityLayerOn) {
     rarityLayer.addTo(map);
+    openRaritiesDrawer();
     const cached = rarityCache.days === layerDays && rarityCache.data;
-    const rarities = cached ? rarityCache.data : await fetchRarities(layerDays);
-    renderRarityLayer(rarities);
+    if (cached) {
+      renderRaritiesDrawer(rarityCache.data, layerDays);
+      renderRarityLayer(rarityCache.data);
+    } else {
+      const rarities = await fetchRarities(layerDays);
+      renderRarityLayer(rarities);
+    }
   } else {
     map.removeLayer(rarityLayer);
+    closeRaritiesDrawer();
   }
 });
 
