@@ -43,6 +43,131 @@ const birdIcon = L.divIcon({
   popupAnchor: [0, -42],
 });
 
+// Rarity marker icon — red circle
+const rarityIcon = L.divIcon({
+  className: '',
+  html: `<div class="layer-marker layer-marker--rarity"></div>`,
+  iconSize: [14, 14],
+  iconAnchor: [7, 7],
+  popupAnchor: [0, -10],
+});
+
+// High count marker icon — blue circle
+const highCountIcon = L.divIcon({
+  className: '',
+  html: `<div class="layer-marker layer-marker--highcount"></div>`,
+  iconSize: [14, 14],
+  iconAnchor: [7, 7],
+  popupAnchor: [0, -10],
+});
+
+// Kitsap County eBird region code
+const KITSAP_REGION = 'US-WA-035';
+
+// Layer group for rarities
+const rarityLayer  = L.layerGroup();
+let rarityLayerOn  = false;
+let layerDays      = 7;
+let rarityCache    = { data: null, days: null };
+
+// ─────────────────────────────────────────────
+//  MAP LAYER TOGGLE CONTROLS (injected into map)
+// ─────────────────────────────────────────────
+const layerControlDiv = L.DomUtil.create('div', 'map-layer-controls');
+layerControlDiv.innerHTML = `
+  <div class="layer-toggle-group">
+    <button id="toggle-rarities" class="layer-toggle" title="Show county-wide rarities">
+      <span class="layer-dot layer-dot--rarity"></span> Rarities
+    </button>
+    <div id="layer-status" class="layer-status" style="display:none">
+      <span class="layer-spinner"></span> Loading…
+    </div>
+  </div>`;
+
+// Prevent map clicks from propagating through the control
+L.DomEvent.disableClickPropagation(layerControlDiv);
+
+// Add as a custom Leaflet control (top-left, below zoom)
+const LayerControl = L.Control.extend({
+  options: { position: 'topleft' },
+  onAdd: () => layerControlDiv,
+});
+new LayerControl().addTo(map);
+
+// ─────────────────────────────────────────────
+//  FETCH COUNTY-WIDE LAYER DATA
+// ─────────────────────────────────────────────
+async function fetchRarities(days) {
+  const status = document.getElementById('layer-status');
+  status.style.display = '';
+  try {
+    const res = await fetch(
+      `${EBIRD_BASE}/data/obs/${KITSAP_REGION}/recent/notable?maxResults=100&back=${days}&detail=full`,
+      { headers: { 'X-eBirdApiToken': EBIRD_API_KEY } }
+    );
+    const data = res.ok ? await res.json() : [];
+    const seenR = new Set();
+    const rarities = data.filter(o => {
+      if (!o.lat || !o.lng) return false;
+      const key = `${o.speciesCode}-${o.locId}`;
+      if (seenR.has(key)) return false;
+      seenR.add(key); return true;
+    });
+    rarityCache = { data: rarities, days };
+    return rarities;
+  } catch (err) {
+    console.error('Rarity fetch failed:', err);
+    return [];
+  } finally {
+    status.style.display = 'none';
+  }
+}
+
+function buildLayerPopup(obs, type) {
+  const count = obs.howMany ? `<span class="popup-count">${Number(obs.howMany).toLocaleString()}</span>` : '';
+  const date  = obs.obsDt ? `<span class="popup-date">${formatDate(obs.obsDt)}</span>` : '';
+  const badge = type === 'rarity'
+    ? `<span class="obs-badge badge-rare">Rare</span>`
+    : `<span class="obs-badge badge-highcount">High Count</span>`;
+  return `
+    <div class="layer-popup">
+      <div class="popup-name">${obs.comName}</div>
+      <div class="popup-sci">${obs.sciName}</div>
+      <div class="popup-meta">${badge} ${count} ${date}</div>
+      <div class="popup-loc">📍 ${obs.locName || ''}</div>
+    </div>`;
+}
+
+function renderRarityLayer(rarities) {
+  rarityLayer.clearLayers();
+  rarities.forEach(obs => {
+    L.marker([obs.lat, obs.lng], { icon: rarityIcon })
+      .bindPopup(buildLayerPopup(obs, 'rarity'), { maxWidth: 240 })
+      .addTo(rarityLayer);
+  });
+}
+
+async function refreshLayers(days) {
+  layerDays = days;
+  if (!rarityLayerOn) return;
+  const rarities = await fetchRarities(days);
+  renderRarityLayer(rarities);
+}
+
+document.getElementById('toggle-rarities').addEventListener('click', async () => {
+  rarityLayerOn = !rarityLayerOn;
+  document.getElementById('toggle-rarities').classList.toggle('active', rarityLayerOn);
+  if (rarityLayerOn) {
+    rarityLayer.addTo(map);
+    const cached = rarityCache.days === layerDays && rarityCache.data;
+    const rarities = cached ? rarityCache.data : await fetchRarities(layerDays);
+    renderRarityLayer(rarities);
+  } else {
+    map.removeLayer(rarityLayer);
+  }
+});
+
+
 // ─────────────────────────────────────────────
 //  DOM REFS
 // ─────────────────────────────────────────────
@@ -139,9 +264,11 @@ document.querySelectorAll('.ebird-tab').forEach(btn =>
 document.querySelectorAll('.range-pill').forEach(pill => {
   pill.addEventListener('click', () => {
     activeDays = parseInt(pill.dataset.days);
+    layerDays  = activeDays;
     document.querySelectorAll('.range-pill').forEach(p => p.classList.remove('active'));
     pill.classList.add('active');
     if (currentHotspot) loadEbird(currentHotspot, activeDays);
+    refreshLayers(activeDays);
   });
 });
 
