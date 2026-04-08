@@ -324,6 +324,32 @@ a:hover { text-decoration: underline; }
 }
 .youtube-wrap iframe { width: 100%; height: 100%; border: none; display: block; }
 
+/* ─── INCOMPLETE SITE MARKER ─────────────────── */
+.marker-incomplete {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #aab0b8;
+  border: 2px solid #fff;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.25);
+  cursor: default;
+}
+
+.site-tooltip--incomplete {
+  background: #6b7280 !important;
+  color: rgba(255,255,255,0.85) !important;
+}
+.site-tooltip--incomplete::before {
+  border-top-color: #6b7280 !important;
+}
+
+.tooltip-coming-soon {
+  font-size: 0.65rem;
+  font-style: italic;
+  opacity: 0.75;
+  margin-left: 0.25rem;
+}
+
 /* ─── RARITIES DRAWER (left side) ───────────── */
 .rarities-drawer {
   width: 0;

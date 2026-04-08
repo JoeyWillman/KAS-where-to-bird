@@ -32,7 +32,7 @@ L.Icon.Default.mergeOptions({
   shadowUrl:     'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
 });
 
-// Custom kingfisher marker
+// Custom kingfisher marker — completed sites
 const birdIcon = L.divIcon({
   className: 'bird-marker',
   html: `<div class="marker-pin">
@@ -41,6 +41,15 @@ const birdIcon = L.divIcon({
   iconSize: [40, 40],
   iconAnchor: [20, 40],
   popupAnchor: [0, -42],
+});
+
+// Incomplete site marker — simple grey dot
+const incompleteIcon = L.divIcon({
+  className: '',
+  html: `<div class="marker-incomplete"></div>`,
+  iconSize: [12, 12],
+  iconAnchor: [6, 6],
+  popupAnchor: [0, -10],
 });
 
 // Rarity marker icon — red circle
@@ -547,18 +556,31 @@ Papa.parse(CSV_PATH, {
       const lng = parseFloat(site.lng);
       if (isNaN(lat) || isNaN(lng)) return;
 
-      const marker = L.marker([lat, lng], { icon: birdIcon })
-        .addTo(map)
-        .bindTooltip(site.sitename || '', {
-          permanent: false, direction: 'top',
-          className: 'site-tooltip', offset: [0, -28],
-        });
+      const isComplete = (site.complete || '').trim() === 'x';
 
-      marker.on('click', (e) => {
-        L.DomEvent.stopPropagation(e);
-        activeMarker = marker;
-        openPanel(site);
-      });
+      if (isComplete) {
+        // Full kingfisher marker — opens detail panel on click
+        const marker = L.marker([lat, lng], { icon: birdIcon })
+          .addTo(map)
+          .bindTooltip(site.sitename || '', {
+            permanent: false, direction: 'top',
+            className: 'site-tooltip', offset: [0, -28],
+          });
+        marker.on('click', (e) => {
+          L.DomEvent.stopPropagation(e);
+          activeMarker = marker;
+          openPanel(site);
+        });
+      } else {
+        // Grey dot — shows name tooltip only, no panel
+        L.marker([lat, lng], { icon: incompleteIcon })
+          .addTo(map)
+          .bindTooltip(`${site.sitename || 'Unnamed site'} <span class="tooltip-coming-soon">coming soon</span>`, {
+            permanent: false, direction: 'top',
+            className: 'site-tooltip site-tooltip--incomplete',
+            offset: [0, -8],
+          });
+      }
     });
   },
   error: err => console.error('CSV error:', err),
