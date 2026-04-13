@@ -490,31 +490,25 @@ function renderEbird(recent, notable) {
 
 const ESCALATION_LADDER = [1, 3, 7, 14, 30];
 
-async function loadEbird(hotspotId, requestedDays, isAutoEscalate = false) {
+// Called on initial site open — escalates up through ranges until data found
+async function loadEbirdAuto(hotspotId, startDays) {
   const loadingText = document.getElementById('ebird-loading-text');
   eBirdLoading.style.display = '';
   eBirdContent.style.display = 'none';
   eBirdNone.style.display    = 'none';
 
-  // Walk up the ladder starting from requestedDays
-  const ladder = ESCALATION_LADDER.filter(d => d >= requestedDays);
+  const ladder = ESCALATION_LADDER.filter(d => d >= startDays);
 
   for (const days of ladder) {
     loadingText.textContent = `Searching last ${days} day${days !== 1 ? 's' : ''}…`;
-
     try {
       const { recent, notable } = await fetchEbird(hotspotId, days);
-      const hasData = recent.length > 0 || notable.length > 0;
-
-      if (hasData) {
-        // Update the pill UI to reflect the range that actually returned data
-        if (days !== requestedDays) {
-          document.querySelectorAll('.range-pill').forEach(p => {
-            p.classList.toggle('active', parseInt(p.dataset.days) === days);
-          });
-          activeDays = days;
-          layerDays  = days;
-        }
+      if (recent.length > 0 || notable.length > 0) {
+        // Snap pill to the range that found data
+        document.querySelectorAll('.range-pill').forEach(p =>
+          p.classList.toggle('active', parseInt(p.dataset.days) === days));
+        activeDays = days;
+        layerDays  = days;
         renderEbird(recent, notable);
         eBirdLink.href          = `https://ebird.org/hotspot/${hotspotId}`;
         eBirdLink.style.display = '';
@@ -526,9 +520,42 @@ async function loadEbird(hotspotId, requestedDays, isAutoEscalate = false) {
     }
   }
 
-  // Nothing found up to 30 days
+  // Nothing found across all ranges
+  setEbirdNoneMessage(30);
   eBirdNone.style.display    = '';
   eBirdLoading.style.display = 'none';
+}
+
+// Called on manual pill click — fixed range, no escalation
+async function loadEbird(hotspotId, days) {
+  const loadingText = document.getElementById('ebird-loading-text');
+  eBirdLoading.style.display = '';
+  eBirdContent.style.display = 'none';
+  eBirdNone.style.display    = 'none';
+  loadingText.textContent    = `Searching last ${days} day${days !== 1 ? 's' : ''}…`;
+
+  try {
+    const { recent, notable } = await fetchEbird(hotspotId, days);
+    if (recent.length > 0 || notable.length > 0) {
+      renderEbird(recent, notable);
+      eBirdLink.href          = `https://ebird.org/hotspot/${hotspotId}`;
+      eBirdLink.style.display = '';
+    } else {
+      setEbirdNoneMessage(days);
+      eBirdNone.style.display = '';
+    }
+  } catch (err) {
+    console.error('eBird fetch failed:', err);
+    setEbirdNoneMessage(days);
+    eBirdNone.style.display = '';
+  } finally {
+    eBirdLoading.style.display = 'none';
+  }
+}
+
+function setEbirdNoneMessage(days) {
+  document.getElementById('ebird-none-days').textContent   = days;
+  document.getElementById('ebird-none-plural').textContent = days === 1 ? '' : 's';
 }
 
 
@@ -605,7 +632,7 @@ function openPanel(site) {
   if (hotspotId && !hotspotId.startsWith('PLACEHOLDER')) {
     currentHotspot = hotspotId;
     sectionEbird.style.display = '';
-    loadEbird(hotspotId, activeDays);
+    loadEbirdAuto(hotspotId, activeDays);
   } else {
     currentHotspot = null;
     sectionEbird.style.display = 'none';
