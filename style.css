@@ -210,6 +210,9 @@ a:hover { text-decoration: underline; }
   padding: 0.6rem 1.25rem;
   background: var(--off-white);
   border-bottom: 1px solid var(--rule);
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
 }
 
 .directions-btn {
@@ -234,24 +237,63 @@ a:hover { text-decoration: underline; }
   text-decoration: none;
 }
 
+.learn-more-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  background: var(--navy);
+  color: var(--white);
+  font-size: 0.82rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  padding: 0.45rem 0.9rem;
+  border-radius: var(--radius);
+  text-decoration: none;
+  transition: background var(--transition), transform var(--transition);
+  box-shadow: 0 1px 4px rgba(0,0,0,0.15);
+}
+.learn-more-btn svg { width: 13px; height: 13px; flex-shrink: 0; }
+.learn-more-btn:hover {
+  background: var(--navy-mid);
+  transform: translateY(-1px);
+  text-decoration: none;
+}
+
 /* ─── SLIDESHOW ──────────────────────────────── */
 .slideshow-wrap {
   position: relative;
-  background: #111;
+  background: #1a1a1a;
   width: 100%;
   height: 210px;
   overflow: hidden;
   flex-shrink: 0;
 }
 .slideshow { width: 100%; height: 100%; position: relative; }
+
+/* Smart image fitting — object-fit cover keeps consistent box,
+   object-position center focuses on subject */
 .slide-img {
   position: absolute; inset: 0;
   width: 100%; height: 100%;
   object-fit: cover;
+  object-position: center;
   opacity: 0;
   transition: opacity 0.45s ease;
+  /* Subtle sharpening via filter for low-quality uploads */
+  image-rendering: auto;
 }
 .slide-img.active { opacity: 1; }
+
+/* Gradient vignette at bottom for readability */
+.slideshow::after {
+  content: '';
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  height: 60px;
+  background: linear-gradient(transparent, rgba(0,0,0,0.35));
+  pointer-events: none;
+  z-index: 1;
+}
 
 .slide-btn {
   position: absolute;
@@ -282,6 +324,96 @@ a:hover { text-decoration: underline; }
   transition: background var(--transition), transform var(--transition);
 }
 .dot.active { background: var(--white); transform: scale(1.35); }
+
+/* Expand button — bottom-right corner of slideshow */
+.expand-btn {
+  position: absolute;
+  bottom: 0.5rem;
+  right: 0.5rem;
+  background: rgba(26,43,60,0.65);
+  border: none;
+  color: var(--white);
+  width: 28px; height: 28px;
+  border-radius: 5px;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  z-index: 3;
+  transition: background var(--transition);
+}
+.expand-btn:hover { background: var(--navy); }
+.expand-btn svg { width: 14px; height: 14px; }
+
+/* ─── LIGHTBOX ───────────────────────────────── */
+.lightbox {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.92);
+  z-index: 9999;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+}
+.lightbox.open { display: flex; }
+
+.lightbox-img-wrap {
+  max-width: 92vw;
+  max-height: 82vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+#lightbox-img {
+  max-width: 92vw;
+  max-height: 82vh;
+  object-fit: contain;
+  border-radius: 4px;
+  box-shadow: 0 8px 40px rgba(0,0,0,0.6);
+  /* Auto-enhance: slight contrast boost for variable quality photos */
+  filter: contrast(1.03) saturate(1.05);
+}
+
+.lightbox-close {
+  position: absolute;
+  top: 1rem; right: 1.25rem;
+  background: none;
+  border: none;
+  color: rgba(255,255,255,0.8);
+  font-size: 2rem;
+  cursor: pointer;
+  line-height: 1;
+  transition: color var(--transition);
+  z-index: 2;
+}
+.lightbox-close:hover { color: var(--white); }
+
+.lightbox-nav {
+  position: absolute;
+  top: 50%; transform: translateY(-50%);
+  background: rgba(255,255,255,0.12);
+  border: none;
+  color: var(--white);
+  font-size: 1.5rem;
+  width: 44px; height: 44px;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  transition: background var(--transition);
+  z-index: 2;
+}
+.lightbox-nav:hover { background: rgba(255,255,255,0.25); }
+.lightbox-prev { left: 1rem; }
+.lightbox-next { right: 1rem; }
+
+.lightbox-caption {
+  color: rgba(255,255,255,0.55);
+  font-size: 0.8rem;
+  margin-top: 0.75rem;
+  letter-spacing: 0.05em;
+}
+
+
 
 /* ─── PANEL SECTIONS ─────────────────────────── */
 .panel-section {

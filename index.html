@@ -55,13 +55,20 @@
         <button id="panel-close" class="panel-close" aria-label="Close panel">&times;</button>
       </div>
 
-      <!-- Directions -->
+      <!-- Directions + Learn More -->
       <div class="directions-bar">
         <a id="directions-btn" href="#" target="_blank" rel="noopener" class="directions-btn">
           <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
             <path d="M3 11l19-9-9 19-2-8-8-2z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
           </svg>
           Get Directions
+        </a>
+        <a id="learn-more-btn" href="#" target="_blank" rel="noopener" class="learn-more-btn" style="display:none">
+          <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
+            <path d="M12 16v-4M12 8h.01" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+          </svg>
+          Learn More
         </a>
       </div>
 
@@ -71,6 +78,11 @@
         <button class="slide-btn slide-prev" id="slide-prev" aria-label="Previous photo">&#8592;</button>
         <button class="slide-btn slide-next" id="slide-next" aria-label="Next photo">&#8594;</button>
         <div id="slide-dots" class="slide-dots"></div>
+        <button id="expand-btn" class="expand-btn" aria-label="Expand photo">
+          <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </button>
       </div>
 
       <!-- About -->
@@ -104,20 +116,24 @@
           <button class="range-pill" data-days="30">30d</button>
         </div>
 
-        <!-- Tabs -->
+        <!-- Tabs: Recent first, then Rarities, then High Count -->
         <div class="ebird-tabs">
-          <button class="ebird-tab active" data-tab="rarities">🔴 Rarities</button>
+          <button class="ebird-tab active" data-tab="recent">🕐 Recent</button>
+          <button class="ebird-tab" data-tab="rarities">🔴 Rarities</button>
           <button class="ebird-tab" data-tab="highcount">📊 High Count</button>
-          <button class="ebird-tab" data-tab="recent">🕐 Recent</button>
         </div>
 
         <div class="ebird-loading" id="ebird-loading">
           <div class="spinner"></div>
-          <span>Loading sightings…</span>
+          <span id="ebird-loading-text">Loading sightings…</span>
         </div>
 
         <div id="ebird-content" class="ebird-content" style="display:none">
-          <div class="ebird-pane" id="pane-rarities">
+          <div class="ebird-pane" id="pane-recent">
+            <ul id="list-recent" class="ebird-list"></ul>
+            <p id="empty-recent" class="ebird-pane-empty" style="display:none">No sightings found in this period.</p>
+          </div>
+          <div class="ebird-pane" id="pane-rarities" style="display:none">
             <ul id="list-rarities" class="ebird-list"></ul>
             <p id="empty-rarities" class="ebird-pane-empty" style="display:none">No rarities reported in this period.</p>
           </div>
@@ -125,14 +141,10 @@
             <ul id="list-highcount" class="ebird-list"></ul>
             <p id="empty-highcount" class="ebird-pane-empty" style="display:none">No high counts recorded in this period.</p>
           </div>
-          <div class="ebird-pane" id="pane-recent" style="display:none">
-            <ul id="list-recent" class="ebird-list"></ul>
-            <p id="empty-recent" class="ebird-pane-empty" style="display:none">No sightings found in this period.</p>
-          </div>
         </div>
 
         <div id="ebird-none" style="display:none" class="ebird-none">
-          No sightings found for this time range.
+          No sightings found in the last 30 days.
         </div>
 
         <a id="ebird-link" href="#" target="_blank" rel="noopener" class="ebird-external-link" style="display:none">
@@ -142,6 +154,17 @@
 
     </aside>
   </main>
+
+  <!-- LIGHTBOX OVERLAY -->
+  <div id="lightbox" class="lightbox" aria-hidden="true" role="dialog" aria-label="Photo viewer">
+    <button id="lightbox-close" class="lightbox-close" aria-label="Close">&times;</button>
+    <button id="lightbox-prev" class="lightbox-nav lightbox-prev" aria-label="Previous">&#8592;</button>
+    <button id="lightbox-next" class="lightbox-nav lightbox-next" aria-label="Next">&#8594;</button>
+    <div class="lightbox-img-wrap">
+      <img id="lightbox-img" src="" alt="Site photo" />
+    </div>
+    <div id="lightbox-caption" class="lightbox-caption"></div>
+  </div>
 
   <!-- FOOTER -->
   <footer class="site-footer">

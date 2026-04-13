@@ -283,7 +283,7 @@ let slideImages    = [];
 let activeMarker   = null;
 let currentHotspot = null;
 let activeDays     = 7;
-let activeTab      = 'rarities';
+let activeTab      = 'recent';
 
 // ─────────────────────────────────────────────
 //  SLIDESHOW
@@ -332,6 +332,56 @@ panel.addEventListener('keydown', (e) => {
   if (e.key === 'ArrowRight') goToSlide(currentSlide + 1);
   if (e.key === 'Escape')     closePanel();
 });
+
+// ─────────────────────────────────────────────
+//  LIGHTBOX
+// ─────────────────────────────────────────────
+const lightbox      = document.getElementById('lightbox');
+const lightboxImg   = document.getElementById('lightbox-img');
+const lightboxClose = document.getElementById('lightbox-close');
+const lightboxPrev  = document.getElementById('lightbox-prev');
+const lightboxNext  = document.getElementById('lightbox-next');
+const lightboxCap   = document.getElementById('lightbox-caption');
+
+function openLightbox(index) {
+  lightbox.classList.add('open');
+  lightbox.setAttribute('aria-hidden', 'false');
+  setLightboxSlide(index);
+  document.body.style.overflow = 'hidden';
+}
+
+function closeLightbox() {
+  lightbox.classList.remove('open');
+  lightbox.setAttribute('aria-hidden', 'true');
+  document.body.style.overflow = '';
+}
+
+function setLightboxSlide(index) {
+  currentSlide = (index + slideImages.length) % slideImages.length;
+  lightboxImg.src = slideImages[currentSlide];
+  lightboxCap.textContent = slideImages.length > 1
+    ? `${currentSlide + 1} / ${slideImages.length}` : '';
+  // Sync the panel slideshow dots too
+  const imgs = slideshow.querySelectorAll('.slide-img');
+  const dots = slideDots.querySelectorAll('.dot');
+  imgs.forEach((img, i) => img.classList.toggle('active', i === currentSlide));
+  dots.forEach((dot, i) => dot.classList.toggle('active', i === currentSlide));
+  lightboxPrev.style.display = slideImages.length > 1 ? '' : 'none';
+  lightboxNext.style.display = slideImages.length > 1 ? '' : 'none';
+}
+
+document.getElementById('expand-btn').addEventListener('click', () => openLightbox(currentSlide));
+lightboxClose.addEventListener('click', closeLightbox);
+lightboxPrev.addEventListener('click', () => setLightboxSlide(currentSlide - 1));
+lightboxNext.addEventListener('click', () => setLightboxSlide(currentSlide + 1));
+lightbox.addEventListener('click', (e) => { if (e.target === lightbox) closeLightbox(); });
+document.addEventListener('keydown', (e) => {
+  if (!lightbox.classList.contains('open')) return;
+  if (e.key === 'Escape')     closeLightbox();
+  if (e.key === 'ArrowLeft')  setLightboxSlide(currentSlide - 1);
+  if (e.key === 'ArrowRight') setLightboxSlide(currentSlide + 1);
+});
+
 
 // ─────────────────────────────────────────────
 //  EBIRD TABS
@@ -438,21 +488,47 @@ function renderEbird(recent, notable) {
   switchTab(activeTab);
 }
 
-async function loadEbird(hotspotId, days) {
+const ESCALATION_LADDER = [1, 3, 7, 14, 30];
+
+async function loadEbird(hotspotId, requestedDays, isAutoEscalate = false) {
+  const loadingText = document.getElementById('ebird-loading-text');
   eBirdLoading.style.display = '';
   eBirdContent.style.display = 'none';
   eBirdNone.style.display    = 'none';
-  try {
-    const { recent, notable } = await fetchEbird(hotspotId, days);
-    renderEbird(recent, notable);
-    eBirdLink.href          = `https://ebird.org/hotspot/${hotspotId}`;
-    eBirdLink.style.display = '';
-  } catch (err) {
-    console.error('eBird fetch failed:', err);
-    eBirdNone.style.display = '';
-  } finally {
-    eBirdLoading.style.display = 'none';
+
+  // Walk up the ladder starting from requestedDays
+  const ladder = ESCALATION_LADDER.filter(d => d >= requestedDays);
+
+  for (const days of ladder) {
+    loadingText.textContent = `Searching last ${days} day${days !== 1 ? 's' : ''}…`;
+
+    try {
+      const { recent, notable } = await fetchEbird(hotspotId, days);
+      const hasData = recent.length > 0 || notable.length > 0;
+
+      if (hasData) {
+        // Update the pill UI to reflect the range that actually returned data
+        if (days !== requestedDays) {
+          document.querySelectorAll('.range-pill').forEach(p => {
+            p.classList.toggle('active', parseInt(p.dataset.days) === days);
+          });
+          activeDays = days;
+          layerDays  = days;
+        }
+        renderEbird(recent, notable);
+        eBirdLink.href          = `https://ebird.org/hotspot/${hotspotId}`;
+        eBirdLink.style.display = '';
+        eBirdLoading.style.display = 'none';
+        return;
+      }
+    } catch (err) {
+      console.error('eBird fetch failed:', err);
+    }
   }
+
+  // Nothing found up to 30 days
+  eBirdNone.style.display    = '';
+  eBirdLoading.style.display = 'none';
 }
 
 
@@ -477,6 +553,16 @@ function openPanel(site) {
     directionsBtn.style.display = '';
   } else {
     directionsBtn.style.display = 'none';
+  }
+
+  // Learn More
+  const learnMoreBtn = document.getElementById('learn-more-btn');
+  const siteLink = (site.link || '').trim();
+  if (siteLink && !siteLink.startsWith('PLACEHOLDER')) {
+    learnMoreBtn.href = siteLink;
+    learnMoreBtn.style.display = '';
+  } else {
+    learnMoreBtn.style.display = 'none';
   }
 
   // Photos
