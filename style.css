@@ -216,15 +216,17 @@ a:hover { text-decoration: underline; }
 }
 
 .directions-btn {
-  display: inline-flex;
+  display: flex;
   align-items: center;
+  justify-content: center;
   gap: 0.4rem;
+  width: 100%;
   background: var(--orange);
   color: var(--white);
   font-size: 0.82rem;
   font-weight: 600;
   letter-spacing: 0.02em;
-  padding: 0.45rem 0.9rem;
+  padding: 0.6rem 0.9rem;
   border-radius: var(--radius);
   text-decoration: none;
   transition: background var(--transition), transform var(--transition);
@@ -467,6 +469,17 @@ a:hover { text-decoration: underline; }
   cursor: default;
 }
 
+/* ─── OUT-OF-COUNTY SITE MARKER ──────────────── */
+.marker-out-of-county {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--green);
+  border: 2px solid #fff;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.25);
+  cursor: pointer;
+}
+
 .site-tooltip--incomplete {
   background: #6b7280 !important;
   color: rgba(255,255,255,0.85) !important;
@@ -667,6 +680,7 @@ a:hover { text-decoration: underline; }
   transition: opacity var(--transition);
 }
 .layer-dot--rarity { background: #c0392b; }
+.layer-dot--other  { background: var(--green); }
 
 .layer-status {
   display: flex;

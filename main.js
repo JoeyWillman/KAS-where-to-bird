@@ -18,10 +18,10 @@ const map = L.map('map', {
   zoomControl: true,
 });
 
-// ESRI World Light Gray — free, no key, no account
-L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}', {
-  attribution: 'Tiles &copy; Esri &mdash; Esri, DeLorme, NAVTEQ',
-  maxZoom: 16,
+// CartoDB Voyager — free, no key, no account
+L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+  attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+  maxZoom: 19,
 }).addTo(map);
 
 // Fix Leaflet default icon 401 errors on GitHub Pages
@@ -47,6 +47,15 @@ const birdIcon = L.divIcon({
 const incompleteIcon = L.divIcon({
   className: '',
   html: `<div class="marker-incomplete"></div>`,
+  iconSize: [12, 12],
+  iconAnchor: [6, 6],
+  popupAnchor: [0, -10],
+});
+
+// Out-of-county complete site marker — small green dot
+const outOfCountyIcon = L.divIcon({
+  className: '',
+  html: `<div class="marker-out-of-county"></div>`,
   iconSize: [12, 12],
   iconAnchor: [6, 6],
   popupAnchor: [0, -10],
@@ -78,6 +87,10 @@ const rarityLayer  = L.layerGroup();
 let rarityLayerOn  = false;
 let layerDays      = 7;
 let rarityCache    = { data: null, days: null };
+
+// Layer group for out-of-county sites
+const otherSitesLayer = L.layerGroup();
+let otherSitesLayerOn = true;
 
 // ─────────────────────────────────────────────
 //  RARITIES DRAWER
@@ -152,6 +165,9 @@ function renderRaritiesDrawer(rarities, days) {
 const layerControlDiv = L.DomUtil.create('div', 'map-layer-controls');
 layerControlDiv.innerHTML = `
   <div class="layer-toggle-group">
+    <button id="toggle-other-sites" class="layer-toggle active" title="Toggle sites outside Kitsap County">
+      <span class="layer-dot layer-dot--other"></span> Other Counties
+    </button>
     <button id="toggle-rarities" class="layer-toggle" title="Show county-wide rarities">
       <span class="layer-dot layer-dot--rarity"></span> Rarities
     </button>
@@ -169,6 +185,7 @@ const LayerControl = L.Control.extend({
   onAdd: () => layerControlDiv,
 });
 new LayerControl().addTo(map);
+otherSitesLayer.addTo(map);
 
 // ─────────────────────────────────────────────
 //  FETCH COUNTY-WIDE LAYER DATA
@@ -235,6 +252,16 @@ async function refreshLayers(days) {
   const rarities = await fetchRarities(days);
   renderRarityLayer(rarities);
 }
+document.getElementById('toggle-other-sites').addEventListener('click', () => {
+  otherSitesLayerOn = !otherSitesLayerOn;
+  document.getElementById('toggle-other-sites').classList.toggle('active', otherSitesLayerOn);
+  if (otherSitesLayerOn) {
+    otherSitesLayer.addTo(map);
+  } else {
+    map.removeLayer(otherSitesLayer);
+  }
+});
+
 document.getElementById('toggle-rarities').addEventListener('click', async () => {
   rarityLayerOn = !rarityLayerOn;
   document.getElementById('toggle-rarities').classList.toggle('active', rarityLayerOn);
@@ -256,6 +283,43 @@ document.getElementById('toggle-rarities').addEventListener('click', async () =>
   }
 });
 
+
+// ─────────────────────────────────────────────
+//  KITSAP COUNTY MASK
+// ─────────────────────────────────────────────
+async function addKitsapMask() {
+  try {
+    const res = await fetch(
+      'https://nominatim.openstreetmap.org/search?q=Kitsap+County%2C+Washington%2C+USA&format=geojson&polygon_geojson=1&limit=1'
+    );
+    const data = await res.json();
+    if (!data.features.length) return;
+
+    const geom = data.features[0].geometry;
+    const world = [[-90, -180], [-90, 180], [90, 180], [90, -180]];
+    const holes = [];
+
+    if (geom.type === 'Polygon') {
+      holes.push(geom.coordinates[0].map(([lng, lat]) => [lat, lng]));
+    } else if (geom.type === 'MultiPolygon') {
+      geom.coordinates.forEach(polygon =>
+        holes.push(polygon[0].map(([lng, lat]) => [lat, lng]))
+      );
+    }
+
+    L.polygon([world, ...holes], {
+      stroke: false,
+      fillColor: '#1a2b3c',
+      fillOpacity: 0.18,
+      interactive: false,
+    }).addTo(map);
+
+  } catch (err) {
+    console.error('Kitsap mask fetch failed:', err);
+  }
+}
+
+addKitsapMask();
 
 // ─────────────────────────────────────────────
 //  DOM REFS
@@ -582,16 +646,6 @@ function openPanel(site) {
     directionsBtn.style.display = 'none';
   }
 
-  // Learn More
-  const learnMoreBtn = document.getElementById('learn-more-btn');
-  const siteLink = (site.link || '').trim();
-  if (siteLink && !siteLink.startsWith('PLACEHOLDER')) {
-    learnMoreBtn.href = siteLink;
-    learnMoreBtn.style.display = '';
-  } else {
-    learnMoreBtn.style.display = 'none';
-  }
-
   // Photos
   const photos = (site.photos || '').split('|').map(s => s.trim()).filter(Boolean);
   if (photos.length) { buildSlideshow(photos); slideshowWrap.style.display = ''; }
@@ -670,14 +724,17 @@ Papa.parse(CSV_PATH, {
       if (isNaN(lat) || isNaN(lng)) return;
 
       const isComplete = (site.complete || '').trim() === 'x';
+      const isKitsap  = (site.county  || '').trim() === 'Kitsap';
+      const target    = isKitsap ? map : otherSitesLayer;
 
       if (isComplete) {
-        // Full kingfisher marker — opens detail panel on click
-        const marker = L.marker([lat, lng], { icon: birdIcon })
-          .addTo(map)
+        const markerIcon    = isKitsap ? birdIcon : outOfCountyIcon;
+        const tooltipOffset = isKitsap ? [0, -28] : [0, -8];
+        const marker = L.marker([lat, lng], { icon: markerIcon })
+          .addTo(target)
           .bindTooltip(site.sitename || '', {
             permanent: false, direction: 'top',
-            className: 'site-tooltip', offset: [0, -28],
+            className: 'site-tooltip', offset: tooltipOffset,
           });
         marker.on('click', (e) => {
           L.DomEvent.stopPropagation(e);
@@ -687,7 +744,7 @@ Papa.parse(CSV_PATH, {
       } else {
         // Grey dot — shows name tooltip only, no panel
         L.marker([lat, lng], { icon: incompleteIcon })
-          .addTo(map)
+          .addTo(target)
           .bindTooltip(`${site.sitename || 'Unnamed site'} <span class="tooltip-coming-soon">coming soon</span>`, {
             permanent: false, direction: 'top',
             className: 'site-tooltip site-tooltip--incomplete',
