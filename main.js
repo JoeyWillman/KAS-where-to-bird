@@ -16,6 +16,9 @@ const map = L.map('map', {
   center: MAP_CENTER,
   zoom: MAP_ZOOM,
   zoomControl: true,
+  minZoom: 7,
+  maxBounds: [[44.0, -126.5], [50.5, -114.5]],
+  maxBoundsViscosity: 1.0,
 });
 
 // CartoDB Voyager — free, no key, no account
@@ -92,6 +95,10 @@ let rarityCache    = { data: null, days: null };
 const otherSitesLayer = L.layerGroup();
 let otherSitesLayerOn = true;
 
+// Layer group for Kitsap County sites
+const kitsapSitesLayer = L.layerGroup();
+let kitsapSitesLayerOn = true;
+
 // ─────────────────────────────────────────────
 //  RARITIES DRAWER
 // ─────────────────────────────────────────────
@@ -165,6 +172,9 @@ function renderRaritiesDrawer(rarities, days) {
 const layerControlDiv = L.DomUtil.create('div', 'map-layer-controls');
 layerControlDiv.innerHTML = `
   <div class="layer-toggle-group">
+    <button id="toggle-kitsap-sites" class="layer-toggle active" title="Toggle Kitsap County sites">
+      <span class="layer-dot layer-dot--kitsap"></span> Kitsap Sites
+    </button>
     <button id="toggle-other-sites" class="layer-toggle active" title="Toggle sites outside Kitsap County">
       <span class="layer-dot layer-dot--other"></span> Other Counties
     </button>
@@ -185,6 +195,7 @@ const LayerControl = L.Control.extend({
   onAdd: () => layerControlDiv,
 });
 new LayerControl().addTo(map);
+kitsapSitesLayer.addTo(map);
 otherSitesLayer.addTo(map);
 
 // ─────────────────────────────────────────────
@@ -252,6 +263,16 @@ async function refreshLayers(days) {
   const rarities = await fetchRarities(days);
   renderRarityLayer(rarities);
 }
+document.getElementById('toggle-kitsap-sites').addEventListener('click', () => {
+  kitsapSitesLayerOn = !kitsapSitesLayerOn;
+  document.getElementById('toggle-kitsap-sites').classList.toggle('active', kitsapSitesLayerOn);
+  if (kitsapSitesLayerOn) {
+    kitsapSitesLayer.addTo(map);
+  } else {
+    map.removeLayer(kitsapSitesLayer);
+  }
+});
+
 document.getElementById('toggle-other-sites').addEventListener('click', () => {
   otherSitesLayerOn = !otherSitesLayerOn;
   document.getElementById('toggle-other-sites').classList.toggle('active', otherSitesLayerOn);
@@ -725,7 +746,7 @@ Papa.parse(CSV_PATH, {
 
       const isComplete = (site.complete || '').trim() === 'x';
       const isKitsap  = (site.county  || '').trim() === 'Kitsap';
-      const target    = isKitsap ? map : otherSitesLayer;
+      const target    = isKitsap ? kitsapSitesLayer : otherSitesLayer;
 
       if (isComplete) {
         const markerIcon    = isKitsap ? birdIcon : outOfCountyIcon;

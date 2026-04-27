@@ -679,8 +679,9 @@ a:hover { text-decoration: underline; }
   opacity: 0.45;
   transition: opacity var(--transition);
 }
-.layer-dot--rarity { background: #c0392b; }
-.layer-dot--other  { background: var(--green); }
+.layer-dot--rarity  { background: #c0392b; }
+.layer-dot--other   { background: var(--green); }
+.layer-dot--kitsap  { background: #2874a6; }
 
 .layer-status {
   display: flex;
