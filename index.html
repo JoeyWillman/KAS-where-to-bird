@@ -25,8 +25,9 @@
   <main class="map-layout">
 
     <!-- Rarities drawer (left side, shown when toggle is active) -->
-    <aside id="rarities-drawer" class="rarities-drawer" aria-hidden="true">
+    <aside id="rarities-drawer" class="rarities-drawer" aria-hidden="true" inert>
       <div class="rarities-drawer-header">
+        <button id="rarities-drawer-close" class="rarities-drawer-close" aria-label="Close rarities">&times;</button>
         <div class="rarities-drawer-title">
           <span class="layer-dot layer-dot--rarity" style="opacity:1; width:10px; height:10px;"></span>
           <h2>Kitsap County Rarities</h2>
@@ -44,7 +45,7 @@
 
     <div id="map"></div>
 
-    <aside id="detail-panel" class="detail-panel" aria-hidden="true" tabindex="-1">
+    <aside id="detail-panel" class="detail-panel" aria-hidden="true" tabindex="-1" inert>
 
       <!-- Sticky title bar -->
       <div class="panel-header">

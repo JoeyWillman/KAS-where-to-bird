@@ -105,13 +105,35 @@ let kitsapSitesLayerOn = true;
 const raritiesDrawer = document.getElementById('rarities-drawer');
 
 function openRaritiesDrawer() {
+  // Opening rarities closes the site detail panel (mutually exclusive)
+  closePanel();
   raritiesDrawer.classList.add('open');
   raritiesDrawer.setAttribute('aria-hidden', 'false');
+  raritiesDrawer.inert = false;
+  // Shrink the map so it stays visible above the bottom sheet (mobile)
+  document.querySelector('.map-layout').classList.add('rarities-active');
+  setTimeout(() => map.invalidateSize(), 320);
 }
 
 function closeRaritiesDrawer() {
+  // Move focus out before hiding, or aria-hidden traps it (a11y + bug)
+  if (raritiesDrawer.contains(document.activeElement)) {
+    document.activeElement.blur();
+  }
   raritiesDrawer.classList.remove('open');
   raritiesDrawer.setAttribute('aria-hidden', 'true');
+  raritiesDrawer.inert = true;
+  document.querySelector('.map-layout').classList.remove('rarities-active');
+  setTimeout(() => map.invalidateSize(), 320);
+}
+
+// Fully turn off the rarities layer + drawer (used by the drawer's × button)
+function dismissRarities() {
+  rarityLayerOn = false;
+  const btn = document.getElementById('toggle-rarities');
+  if (btn) btn.classList.remove('active');
+  map.removeLayer(rarityLayer);
+  closeRaritiesDrawer();
 }
 
 function renderRaritiesDrawer(rarities, days) {
@@ -150,8 +172,20 @@ function renderRaritiesDrawer(rarities, days) {
     // Clicking a row pans map to that marker and opens its popup
     if (obs.lat && obs.lng) {
       li.addEventListener('click', () => {
-        map.setView([obs.lat, obs.lng], 13, { animate: true });
-        // Find and open the matching rarity marker popup
+        const targetZoom = Math.max(map.getZoom(), 13);
+        map.setView([obs.lat, obs.lng], targetZoom, { animate: true });
+
+        // On mobile the bottom sheet covers ~42% of the screen, so nudge the
+        // map up after centering, keeping the pin in the visible upper area.
+        if (window.matchMedia('(max-width: 767px)').matches) {
+          map.once('moveend', () => {
+            const sheet = document.querySelector('.rarities-drawer');
+            const offsetY = sheet ? sheet.offsetHeight / 2 : 0;
+            if (offsetY) map.panBy([0, offsetY], { animate: true });
+          });
+        }
+
+        // Open the matching rarity marker popup
         rarityLayer.eachLayer(marker => {
           const ll = marker.getLatLng();
           if (Math.abs(ll.lat - obs.lat) < 0.0001 && Math.abs(ll.lng - obs.lng) < 0.0001) {
@@ -171,7 +205,13 @@ function renderRaritiesDrawer(rarities, days) {
 // ─────────────────────────────────────────────
 const layerControlDiv = L.DomUtil.create('div', 'map-layer-controls');
 layerControlDiv.innerHTML = `
-  <div class="layer-toggle-group">
+  <button id="layers-toggle-btn" class="layers-toggle-btn" title="Map layers" aria-label="Toggle map layers" aria-expanded="true">
+    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"
+        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+  </button>
+  <div class="layer-toggle-group" id="layer-toggle-group">
     <button id="toggle-kitsap-sites" class="layer-toggle active" title="Toggle Kitsap County sites">
       <span class="layer-dot layer-dot--kitsap"></span> Kitsap Sites
     </button>
@@ -197,6 +237,69 @@ const LayerControl = L.Control.extend({
 new LayerControl().addTo(map);
 kitsapSitesLayer.addTo(map);
 otherSitesLayer.addTo(map);
+
+// Collapsible layers panel
+const layersToggleBtn = document.getElementById('layers-toggle-btn');
+const layerToggleGroup = document.getElementById('layer-toggle-group');
+
+function setLayersCollapsed(collapsed) {
+  layerControlDiv.classList.toggle('collapsed', collapsed);
+  layersToggleBtn.setAttribute('aria-expanded', String(!collapsed));
+}
+
+layersToggleBtn.addEventListener('click', () => {
+  const isCollapsed = layerControlDiv.classList.contains('collapsed');
+  setLayersCollapsed(!isCollapsed);
+});
+
+// Start collapsed on mobile (saves map space), expanded on desktop
+setLayersCollapsed(window.matchMedia('(max-width: 767px)').matches);
+
+// ─────────────────────────────────────────────
+//  FULLSCREEN BUTTON
+// ─────────────────────────────────────────────
+const fsControlDiv = L.DomUtil.create('div', 'leaflet-bar');
+fsControlDiv.style.border = 'none';
+fsControlDiv.innerHTML = `
+  <button id="map-fullscreen" class="map-fullscreen-btn" title="Toggle fullscreen" aria-label="Toggle fullscreen">
+    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M4 9V5a1 1 0 011-1h4M20 9V5a1 1 0 00-1-1h-4M4 15v4a1 1 0 001 1h4M20 15v4a1 1 0 01-1 1h-4"
+        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+  </button>`;
+L.DomEvent.disableClickPropagation(fsControlDiv);
+
+const FullscreenControl = L.Control.extend({
+  options: { position: 'topright' },
+  onAdd: () => fsControlDiv,
+});
+new FullscreenControl().addTo(map);
+
+// The element we want to fullscreen — the whole map+panel layout
+const fullscreenTarget = document.querySelector('.map-layout');
+
+function isFullscreen() {
+  return document.fullscreenElement || document.webkitFullscreenElement;
+}
+
+function toggleFullscreen() {
+  if (!isFullscreen()) {
+    const el = fullscreenTarget;
+    const req = el.requestFullscreen || el.webkitRequestFullscreen;
+    if (req) req.call(el);
+  } else {
+    const exit = document.exitFullscreen || document.webkitExitFullscreen;
+    if (exit) exit.call(document);
+  }
+}
+
+document.getElementById('map-fullscreen').addEventListener('click', toggleFullscreen);
+
+// Keep Leaflet sized correctly when entering/leaving fullscreen
+['fullscreenchange', 'webkitfullscreenchange'].forEach(evt =>
+  document.addEventListener(evt, () => setTimeout(() => map.invalidateSize(), 200))
+);
+
 
 // ─────────────────────────────────────────────
 //  FETCH COUNTY-WIDE LAYER DATA
@@ -648,6 +751,12 @@ function setEbirdNoneMessage(days) {
 //  PANEL OPEN / CLOSE
 // ─────────────────────────────────────────────
 function openPanel(site) {
+  // Opening a site always closes the rarities drawer (mutually exclusive)
+  rarityLayerOn = false;
+  document.getElementById('toggle-rarities').classList.remove('active');
+  if (map.hasLayer(rarityLayer)) map.removeLayer(rarityLayer);
+  closeRaritiesDrawer();
+
   panelTitle.textContent = site.sitename || '';
   panelArea.textContent  = site.area     || '';
 
@@ -715,19 +824,27 @@ function openPanel(site) {
 
   panel.classList.add('open');
   panel.setAttribute('aria-hidden', 'false');
+  panel.inert = false;
   panel.scrollTop = 0;
   panel.focus();
 }
 
 function closePanel() {
+  if (panel.contains(document.activeElement)) {
+    document.activeElement.blur();
+  }
   panel.classList.remove('open');
   panel.setAttribute('aria-hidden', 'true');
+  panel.inert = true;
   currentHotspot = null;
   activeMarker   = null;
 }
 
 panelClose.addEventListener('click', closePanel);
 map.on('click', closePanel);
+
+// Rarities drawer close button — fully dismisses the rarities layer + drawer
+document.getElementById('rarities-drawer-close').addEventListener('click', dismissRarities);
 
 // ─────────────────────────────────────────────
 //  LOAD CSV

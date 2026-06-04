@@ -91,6 +91,17 @@ a:hover { text-decoration: underline; }
   position: relative;
 }
 
+/* When the layout is in fullscreen, fill the entire screen */
+.map-layout:fullscreen,
+.map-layout:-webkit-full-screen {
+  height: 100vh;
+  width: 100vw;
+}
+.map-layout:fullscreen #map,
+.map-layout:-webkit-full-screen #map {
+  height: 100%;
+}
+
 /* ─── MAP ────────────────────────────────────── */
 #map {
   flex: 1;
@@ -517,7 +528,7 @@ a:hover { text-decoration: underline; }
 .rarities-drawer-header {
   background: #c0392b;
   color: var(--white);
-  padding: 0.85rem 1rem;
+  padding: 0.85rem 2.5rem 0.85rem 1rem;
   position: sticky;
   top: 0;
   z-index: 5;
@@ -620,26 +631,79 @@ a:hover { text-decoration: underline; }
 .rarities-drawer::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.12); border-radius: 2px; }
 
 /* Mobile: drawer becomes top strip */
-@media (max-width: 767px) {
-  .rarities-drawer {
-    width: 100% !important;
-    max-height: 0;
-    border-right: none;
-    border-bottom: 1px solid var(--rule);
-    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-    transition: max-height var(--transition);
-    overflow: hidden;
-  }
-  .rarities-drawer.open {
-    width: 100% !important;
-    max-height: 45vh;
-    overflow-y: auto;
-  }
+/* (Mobile rarities-drawer styles consolidated into the main mobile
+   media query near the bottom of this file.) */
+
+/* ─── RARITIES DRAWER CLOSE BUTTON ───────────── */
+.rarities-drawer-close {
+  position: absolute;
+  top: 0.55rem;
+  right: 0.7rem;
+  background: rgba(255,255,255,0.18);
+  border: none;
+  color: var(--white);
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  font-size: 1.2rem;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background var(--transition);
+  z-index: 6;
 }
+.rarities-drawer-close:hover { background: rgba(255,255,255,0.32); }
+
+/* ─── FULLSCREEN BUTTON ──────────────────────── */
+.map-fullscreen-btn {
+  background: var(--white);
+  border: none;
+  width: 34px;
+  height: 34px;
+  border-radius: var(--radius);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.18);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--navy);
+  transition: background var(--transition);
+}
+.map-fullscreen-btn:hover { background: var(--off-white); }
+.map-fullscreen-btn svg { width: 18px; height: 18px; }
 
 /* ─── MAP LAYER TOGGLE CONTROLS ──────────────── */
 .map-layer-controls {
   margin-top: 0.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+/* The "Layers" button that expands/collapses the toggle group */
+.layers-toggle-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--white);
+  border: none;
+  border-radius: var(--radius);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.18);
+  width: 34px;
+  height: 34px;
+  color: var(--navy);
+  cursor: pointer;
+  transition: background var(--transition);
+  align-self: flex-start;
+}
+.layers-toggle-btn:hover { background: var(--off-white); }
+.layers-toggle-btn svg { width: 18px; height: 18px; flex-shrink: 0; }
+
+/* Collapsed state — hide the toggle group, keep just the button */
+.map-layer-controls.collapsed .layer-toggle-group {
+  display: none;
 }
 
 .layer-toggle-group {
@@ -882,37 +946,101 @@ a:hover { text-decoration: underline; }
    MOBILE — panel becomes full-width bottom sheet
 ═══════════════════════════════════════════════ */
 @media (max-width: 767px) {
-  html, body { overflow: auto; }
+  /* Keep everything locked to the viewport — no page scroll, no white box */
+  html, body { overflow: hidden; height: 100%; }
 
+  /* Hide footer on mobile — frees the calc and removes the white gap */
+  .site-footer { display: none; }
+
+  /* Map fills the entire area below the header; panel overlays on top */
   .map-layout {
-    flex-direction: column;
-    height: auto;
+    flex-direction: row;
+    height: calc(100vh - var(--header-h));
+    position: relative;
   }
 
   #map {
-    height: 52vw;
-    min-height: 260px;
     width: 100%;
+    height: 100%;
+    flex: 1;
   }
 
+  /* Detail panel becomes a FULL-SCREEN popup over everything */
   .detail-panel {
-    width: 100% !important;
-    max-height: 0;
-    overflow: hidden;
-    border-left: none;
-    border-top: 2px solid var(--navy);
-    transition: max-height 0.35s ease;
+    position: fixed !important;
+    inset: 0 !important;
+    width: 100vw !important;
+    height: 100vh !important;
+    height: 100dvh !important;
+    max-height: none !important;
+    transform: none !important;
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transition: opacity 0.2s ease, visibility 0s linear 0.2s;
+    border: none;
+    border-radius: 0;
     box-shadow: none;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    z-index: 2000;
   }
   .detail-panel.open {
-    width: 100% !important;
-    max-height: 9999px;
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+    transition: opacity 0.2s ease, visibility 0s linear 0s;
+  }
+
+  /* Rarities drawer = partial bottom sheet; map stays visible & usable above it */
+  .rarities-drawer {
+    position: fixed !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    top: auto !important;
+    width: 100vw !important;
+    height: 42vh !important;
+    height: 42dvh !important;
+    max-height: 42vh !important;
+    max-height: 42dvh !important;
+    transform: translateY(101%);
+    visibility: hidden;
+    pointer-events: none;
+    transition: transform 0.3s ease, visibility 0s linear 0.3s;
+    border: none;
+    border-top: 3px solid #c0392b;
+    border-radius: 14px 14px 0 0;
+    box-shadow: 0 -4px 24px rgba(0,0,0,0.28);
     overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    opacity: 1;
+    z-index: 1200;   /* below the full-screen site panel (2000) */
+  }
+  .rarities-drawer.open {
+    transform: translateY(0) !important;
+    visibility: visible;
+    pointer-events: auto;
+    transition: transform 0.3s ease, visibility 0s linear 0s;
+  }
+
+  /* When rarities sheet is open, shrink the map so it stays fully visible above */
+  .map-layout.rarities-active #map {
+    height: 58vh;
+    height: 58dvh;
   }
 
   .logo-text { font-size: 0.9rem; }
-
   .ebird-controls { gap: 0.35rem; }
+  .layer-toggle { padding: 0.45rem 0.6rem; font-size: 0.8rem; }
+
+  /* Bigger, easier-to-tap close buttons on full-screen popups */
+  .panel-close,
+  .rarities-drawer-close {
+    width: 36px !important;
+    height: 36px !important;
+    font-size: 1.5rem !important;
+  }
 }
 
 @media (max-width: 900px) and (min-width: 768px) {
