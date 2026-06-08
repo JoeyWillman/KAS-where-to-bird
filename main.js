@@ -286,6 +286,26 @@ const FullscreenControl = L.Control.extend({
 });
 new FullscreenControl().addTo(map);
 
+// ─────────────────────────────────────────────
+//  INFO BUTTON (Leaflet control, stacks under fullscreen, top-right)
+// ─────────────────────────────────────────────
+const infoControlDiv = L.DomUtil.create('div', 'leaflet-bar');
+infoControlDiv.style.border = 'none';
+infoControlDiv.innerHTML = `
+  <button id="info-btn" class="info-btn" title="About this map" aria-label="About this map">
+    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
+      <path d="M12 16v-4M12 8h.01" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+    </svg>
+  </button>`;
+L.DomEvent.disableClickPropagation(infoControlDiv);
+
+const InfoControl = L.Control.extend({
+  options: { position: 'topright' },
+  onAdd: () => infoControlDiv,
+});
+new InfoControl().addTo(map);
+
 // The element we want to fullscreen — the whole map+panel layout
 const fullscreenTarget = document.querySelector('.map-layout');
 
@@ -994,6 +1014,30 @@ Papa.parse(CSV_PATH, {
     }
   },
   error: err => console.error('CSV error:', err),
+});
+
+// ─────────────────────────────────────────────
+//  INFO MODAL
+// ─────────────────────────────────────────────
+const infoBtn        = document.getElementById('info-btn');
+const infoModal      = document.getElementById('info-modal');
+const infoModalClose = document.getElementById('info-modal-close');
+const infoBackdrop   = infoModal.querySelector('.info-modal-backdrop');
+
+function openInfoModal() {
+  infoModal.classList.add('open');
+  infoModal.setAttribute('aria-hidden', 'false');
+}
+function closeInfoModal() {
+  infoModal.classList.remove('open');
+  infoModal.setAttribute('aria-hidden', 'true');
+}
+
+infoBtn.addEventListener('click', openInfoModal);
+infoModalClose.addEventListener('click', closeInfoModal);
+infoBackdrop.addEventListener('click', closeInfoModal);
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && infoModal.classList.contains('open')) closeInfoModal();
 });
 
 // ─────────────────────────────────────────────

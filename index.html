@@ -149,6 +149,97 @@
     </aside>
   </main>
 
+  <!-- INFO MODAL -->
+  <div id="info-modal" class="info-modal" aria-hidden="true" role="dialog" aria-label="About this map">
+    <div class="info-modal-backdrop"></div>
+    <div class="info-modal-content">
+      <button id="info-modal-close" class="info-modal-close" aria-label="Close">&times;</button>
+
+      <h2 class="info-title">Where to Bird in Kitsap County</h2>
+      <p class="info-intro">
+        An interactive guide to birding sites across Kitsap County and the surrounding
+        area, with live eBird sightings, photos, and visitor information. Here's how to
+        use the map.
+      </p>
+
+      <div class="info-section">
+        <h3><span class="info-dot info-dot--kitsap"></span> Kitsap County Sites</h3>
+        <p>
+          The main birding sites within Kitsap County. These use a tiered marker system
+          based on recent activity:
+        </p>
+        <ul class="info-list">
+          <li>
+            <span class="info-marker info-marker--active"></span>
+            <span><strong>Highlighted:</strong> sites with at least one eBird
+            checklist submitted in the last 3 days. </span>
+          </li>
+          <li>
+            <span class="info-marker info-marker--subdued"></span>
+            <span><strong>Transparent:</strong> established sites without a checklist in the
+            last few days.</span>
+          </li>
+        </ul>
+      </div>
+
+      <div class="info-section">
+        <h3><span class="info-dot info-dot--other"></span> Other Counties</h3>
+        <p>
+          Notable birding destinations just outside Kitsap County. Shown as small green markers and toggled separately in the layers menu.
+        </p>
+      </div>
+
+      <div class="info-section">
+        <h3><span class="info-dot info-dot--rarity"></span> Rarities</h3>
+        <p>
+          Toggle the Rarities layer to see rare or unusual birds recently reported anywhere
+          in Kitsap County in the previous 7 days, pulled live from eBird. Each red marker is a recent rare-bird
+          sighting; tap one for the species, date, and location. 
+        </p>
+      </div>
+
+      <div class="info-section">
+        <h3>📍 Site Information</h3>
+        <p>
+          Tap any site marker to open its details: photos, a description, accessibility and
+          amenities, an optional "how to bird here" video, and live eBird sightings. Use
+          "Get Directions" to navigate there.
+        </p>
+        <p class="info-caveat">
+          <strong>Please note:</strong> accessibility details and trail conditions can
+          change with seasons, weather, and maintenance. If you notice anything inaccurate
+          or out of date, please
+          <a href="https://www.kitsapaudubon.org/contact" target="_blank" rel="noopener">let us know</a>.
+        </p>
+      </div>
+
+      <div class="info-section">
+        <h3>🕐 eBird Sightings</h3>
+        <p>
+          Each site with an eBird hotspot shows recent sightings in three tabs: <strong>Recent</strong>
+          (all species lately reported there), <strong>Rarities</strong> (anything flagged as
+          unusual), and <strong>High Count</strong> (the largest flock sizes recorded). Use the
+          day buttons (1–30) to change the window.
+          All data comes live from <a href="https://ebird.org" target="_blank" rel="noopener">eBird</a>,
+          a project of the Cornell Lab of Ornithology.
+        </p>
+      </div>
+
+      <div class="info-section info-getinvolved">
+        <h3>Get Involved</h3>
+        <p>
+          This map is a living community resource, maintained by Kitsap Audubon Society
+          volunteers. Want to add a birding site, contribute photos, or update information
+          for a place you know well? We'd love your help.
+        </p>
+        <a href="https://www.kitsapaudubon.org/contact" target="_blank" rel="noopener" class="info-cta">
+          Contact Kitsap Audubon →
+        </a>
+      </div>
+
+    </div>
+  </div>
+
   <!-- LIGHTBOX OVERLAY -->
   <div id="lightbox" class="lightbox" aria-hidden="true" role="dialog" aria-label="Photo viewer">
     <button id="lightbox-close" class="lightbox-close" aria-label="Close">&times;</button>
