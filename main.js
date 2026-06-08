@@ -82,6 +82,17 @@ const highCountIcon = L.divIcon({
   popupAnchor: [0, -10],
 });
 
+// Subdued marker — for complete Kitsap sites NOT in the top 10 most-visited
+const subduedIcon = L.divIcon({
+  className: 'bird-marker',
+  html: `<div class="marker-pin marker-pin--subdued">
+           <img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQEc6eX9tIp0WmvgsaFXh_ePJUSql6dw09ZVA&s" alt="" />
+         </div>`,
+  iconSize: [28, 28],
+  iconAnchor: [14, 28],
+  popupAnchor: [0, -30],
+});
+
 // Kitsap County eBird region code
 const KITSAP_REGION = 'US-WA-035';
 
@@ -847,49 +858,140 @@ map.on('click', closePanel);
 document.getElementById('rarities-drawer-close').addEventListener('click', dismissRarities);
 
 // ─────────────────────────────────────────────
-//  LOAD CSV
+//  RECENT ACTIVITY (sites with a checklist in the last 3 days)
 // ─────────────────────────────────────────────
+// A site is "active" if it has at least one eBird checklist in the window.
+// One API call per hotspot is heavy, so results are cached for 24 hours.
+
+const ACTIVITY_DAYS      = 3;
+const ACTIVITY_CACHE_KEY = 'kasRecentActivity';
+const ACTIVITY_TTL_MS    = 24 * 60 * 60 * 1000; // 24 hours
+
+// Does this hotspot have any checklist in the last ACTIVITY_DAYS days?
+async function hasRecentChecklist(hotspotId) {
+  try {
+    const res = await fetch(
+      `${EBIRD_BASE}/product/lists/${hotspotId}?maxResults=200`,
+      { headers: { 'X-eBirdApiToken': EBIRD_API_KEY } }
+    );
+    if (!res.ok) return false;
+    const lists = await res.json();
+    const cutoff = Date.now() - ACTIVITY_DAYS * 24 * 60 * 60 * 1000;
+    return lists.some(l => {
+      const d = new Date(l.obsDt);
+      return !isNaN(d) && d.getTime() >= cutoff;
+    });
+  } catch (err) {
+    console.error('Activity check failed for', hotspotId, err);
+    return false;
+  }
+}
+
+// Returns a Set of hotspot IDs that have recent activity.
+// Cached for 24h so we don't hammer the API on every load.
+async function getActiveHotspots(hotspotIds) {
+  try {
+    const cached = JSON.parse(localStorage.getItem(ACTIVITY_CACHE_KEY) || 'null');
+    if (cached && (Date.now() - cached.ts) < ACTIVITY_TTL_MS && Array.isArray(cached.active)) {
+      return new Set(cached.active);
+    }
+  } catch (_) { /* ignore bad cache */ }
+
+  const active = [];
+  const BATCH = 6;
+  for (let i = 0; i < hotspotIds.length; i += BATCH) {
+    const batch = hotspotIds.slice(i, i + BATCH);
+    const results = await Promise.all(batch.map(async id => ({
+      id, active: await hasRecentChecklist(id),
+    })));
+    results.forEach(r => { if (r.active) active.push(r.id); });
+  }
+
+  try {
+    localStorage.setItem(ACTIVITY_CACHE_KEY, JSON.stringify({ ts: Date.now(), active }));
+  } catch (_) { /* storage may be unavailable */ }
+
+  return new Set(active);
+}
+
+
 Papa.parse(CSV_PATH, {
   download: true,
   header: true,
   skipEmptyLines: true,
-  complete: ({ data: sites }) => {
+  complete: async ({ data: sites }) => {
     if (!sites.length) return;
 
-    sites.forEach(site => {
-      const lat = parseFloat(site.lat);
-      const lng = parseFloat(site.lng);
-      if (isNaN(lat) || isNaN(lng)) return;
+    // Collect hotspot IDs from complete Kitsap sites for popularity ranking
+    const rankableIds = sites
+      .filter(s => (s.complete || '').trim() === 'x'
+                && (s.county || '').trim() === 'Kitsap'
+                && (s.ebird_hotspot_id || '').trim()
+                && !(s.ebird_hotspot_id || '').trim().startsWith('PLACEHOLDER'))
+      .map(s => s.ebird_hotspot_id.trim());
 
-      const isComplete = (site.complete || '').trim() === 'x';
-      const isKitsap  = (site.county  || '').trim() === 'Kitsap';
-      const target    = isKitsap ? kitsapSitesLayer : otherSitesLayer;
+    // Kick off activity check (cached daily). Render markers immediately with
+    // a fallback so the map isn't blocked if the API is slow; re-style once
+    // the active set resolves.
+    let activeSet = new Set();
+    const renderMarkers = () => {
+      kitsapSitesLayer.clearLayers();
+      otherSitesLayer.clearLayers();
 
-      if (isComplete) {
-        const markerIcon    = isKitsap ? birdIcon : outOfCountyIcon;
-        const tooltipOffset = isKitsap ? [0, -28] : [0, -8];
-        const marker = L.marker([lat, lng], { icon: markerIcon })
-          .addTo(target)
-          .bindTooltip(site.sitename || '', {
-            permanent: false, direction: 'top',
-            className: 'site-tooltip', offset: tooltipOffset,
+      sites.forEach(site => {
+        const lat = parseFloat(site.lat);
+        const lng = parseFloat(site.lng);
+        if (isNaN(lat) || isNaN(lng)) return;
+
+        const isComplete = (site.complete || '').trim() === 'x';
+        const isKitsap   = (site.county  || '').trim() === 'Kitsap';
+        const target     = isKitsap ? kitsapSitesLayer : otherSitesLayer;
+        const hotspotId  = (site.ebird_hotspot_id || '').trim();
+
+        if (isComplete) {
+          // Sites with a checklist in the last 3 days get the full marker;
+          // other complete Kitsap sites get the subdued marker.
+          let markerIcon, tooltipOffset;
+          if (isKitsap) {
+            const isActive = activeSet.has(hotspotId);
+            markerIcon    = isActive ? birdIcon : subduedIcon;
+            tooltipOffset = isActive ? [0, -28] : [0, -20];
+          } else {
+            markerIcon    = outOfCountyIcon;
+            tooltipOffset = [0, -8];
+          }
+
+          const marker = L.marker([lat, lng], { icon: markerIcon })
+            .addTo(target)
+            .bindTooltip(site.sitename || '', {
+              permanent: false, direction: 'top',
+              className: 'site-tooltip', offset: tooltipOffset,
+            });
+          marker.on('click', (e) => {
+            L.DomEvent.stopPropagation(e);
+            activeMarker = marker;
+            openPanel(site);
           });
-        marker.on('click', (e) => {
-          L.DomEvent.stopPropagation(e);
-          activeMarker = marker;
-          openPanel(site);
-        });
-      } else {
-        // Grey dot — shows name tooltip only, no panel
-        L.marker([lat, lng], { icon: incompleteIcon })
-          .addTo(target)
-          .bindTooltip(`${site.sitename || 'Unnamed site'} <span class="tooltip-coming-soon">coming soon</span>`, {
-            permanent: false, direction: 'top',
-            className: 'site-tooltip site-tooltip--incomplete',
-            offset: [0, -8],
-          });
-      }
-    });
+        } else {
+          L.marker([lat, lng], { icon: incompleteIcon })
+            .addTo(target)
+            .bindTooltip(`${site.sitename || 'Unnamed site'} <span class="tooltip-coming-soon">coming soon</span>`, {
+              permanent: false, direction: 'top',
+              className: 'site-tooltip site-tooltip--incomplete',
+              offset: [0, -8],
+            });
+        }
+      });
+    };
+
+    // First render with no activity data (all complete Kitsap sites subdued)
+    renderMarkers();
+
+    // Then check recent activity and re-render with active sites highlighted
+    if (rankableIds.length) {
+      activeSet = await getActiveHotspots(rankableIds);
+      renderMarkers();
+    }
   },
   error: err => console.error('CSV error:', err),
 });

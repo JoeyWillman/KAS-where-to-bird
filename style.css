@@ -136,16 +136,34 @@ a:hover { text-decoration: underline; }
   height: 40px;
   border-radius: 50%;
   overflow: hidden;
-  border: 2px solid var(--navy);
-  box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+  /* Top-tier (most-visited) standout border: gold ring + navy outer halo */
+  border: 3px solid #e3a008;
+  box-shadow: 0 0 0 1.5px var(--navy), 0 2px 8px rgba(0,0,0,0.35);
   cursor: pointer;
   transition: transform var(--transition), box-shadow var(--transition);
   background: var(--white);
 }
 .marker-pin img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+/* Subdued marker — smaller, muted, plain border for non-top-10 sites */
+.marker-pin--subdued {
+  width: 28px;
+  height: 28px;
+  border: 2px solid var(--navy);
+  box-shadow: 0 2px 6px rgba(0,0,0,0.28);
+  opacity: 0.78;
+  filter: saturate(0.85);
+}
+.marker-pin--subdued:hover {
+  opacity: 1;
+  filter: saturate(1);
+}
 .marker-pin:hover {
   transform: scale(1.18);
-  box-shadow: 0 4px 14px rgba(0,0,0,0.4);
+  box-shadow: 0 0 0 1.5px var(--navy), 0 4px 14px rgba(0,0,0,0.45);
+}
+.marker-pin--subdued:hover {
+  box-shadow: 0 4px 12px rgba(0,0,0,0.4);
 }
 
 /* ─── DETAIL PANEL ───────────────────────────── */
