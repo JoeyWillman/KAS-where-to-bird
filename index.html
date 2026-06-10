@@ -60,6 +60,12 @@
 
     <div id="map"></div>
 
+    <!-- Loading indicator (shown until sites load from the sheet) -->
+    <div id="map-loading" class="map-loading">
+      <div class="spinner"></div>
+      <span>Loading birding sites…</span>
+    </div>
+
     <aside id="detail-panel" class="detail-panel" aria-hidden="true" tabindex="-1" inert>
 
       <!-- Sticky title bar -->
@@ -71,7 +77,7 @@
         <button id="panel-close" class="panel-close" aria-label="Close panel">&times;</button>
       </div>
 
-      <!-- Directions + Learn More -->
+      <!-- Directions -->
       <div class="directions-bar">
         <a id="directions-btn" href="#" target="_blank" rel="noopener" class="directions-btn">
           <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">

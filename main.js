@@ -80,7 +80,7 @@ L.Icon.Default.mergeOptions({
 const birdIcon = L.divIcon({
   className: 'bird-marker',
   html: `<div class="marker-pin">
-           <img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQEc6eX9tIp0WmvgsaFXh_ePJUSql6dw09ZVA&s" alt="" />
+           <img src="data/img/kingfisher.png" alt="" />
          </div>`,
   iconSize: [40, 40],
   iconAnchor: [20, 40],
@@ -127,7 +127,7 @@ const highCountIcon = L.divIcon({
 const subduedIcon = L.divIcon({
   className: 'bird-marker',
   html: `<div class="marker-pin marker-pin--subdued">
-           <img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQEc6eX9tIp0WmvgsaFXh_ePJUSql6dw09ZVA&s" alt="" />
+           <img src="data/img/kingfisher.png" alt="" />
          </div>`,
   iconSize: [28, 28],
   iconAnchor: [14, 28],
@@ -944,7 +944,11 @@ Papa.parse(CSV_PATH, {
   header: true,
   skipEmptyLines: true,
   complete: async ({ data: sites }) => {
-    if (!sites.length) return;
+    const loadingEl = document.getElementById('map-loading');
+    if (!sites.length) {
+      if (loadingEl) loadingEl.style.display = 'none';
+      return;
+    }
 
     // Collect hotspot IDs from complete Kitsap sites for popularity ranking
     const rankableIds = sites
@@ -1019,6 +1023,7 @@ Papa.parse(CSV_PATH, {
 
     // First render with no activity data (all complete Kitsap sites subdued)
     renderMarkers();
+    if (loadingEl) loadingEl.style.display = 'none';
 
     // Then check recent activity and re-render with active sites highlighted
     if (rankableIds.length) {
@@ -1026,7 +1031,11 @@ Papa.parse(CSV_PATH, {
       renderMarkers();
     }
   },
-  error: err => console.error('CSV error:', err),
+  error: err => {
+    console.error('CSV error:', err);
+    const loadingEl = document.getElementById('map-loading');
+    if (loadingEl) loadingEl.innerHTML = '<span>Could not load sites. Please refresh.</span>';
+  },
 });
 
 // ─────────────────────────────────────────────
@@ -1046,16 +1055,27 @@ function runSearch(query) {
     return;
   }
 
-  // Match site names; prioritize names that start with the query
+  // Match against site name, area, and description.
+  // Sort priority: name-starts-with > name-contains > area/description match.
   const matches = searchIndex
-    .filter(item => item.sitename.toLowerCase().includes(q))
-    .sort((a, b) => {
-      const aStarts = a.sitename.toLowerCase().startsWith(q) ? 0 : 1;
-      const bStarts = b.sitename.toLowerCase().startsWith(q) ? 0 : 1;
-      if (aStarts !== bStarts) return aStarts - bStarts;
-      return a.sitename.localeCompare(b.sitename);
+    .map(item => {
+      const name = item.sitename.toLowerCase();
+      const area = (item.site.area || '').toLowerCase();
+      const desc = (item.site.desc || '').toLowerCase();
+      let rank = null;
+      if (name.startsWith(q))      rank = 0;
+      else if (name.includes(q))   rank = 1;
+      else if (area.includes(q))   rank = 2;
+      else if (desc.includes(q))   rank = 3;
+      return rank === null ? null : { item, rank };
     })
-    .slice(0, 8);
+    .filter(Boolean)
+    .sort((a, b) => {
+      if (a.rank !== b.rank) return a.rank - b.rank;
+      return a.item.sitename.localeCompare(b.item.sitename);
+    })
+    .slice(0, 8)
+    .map(m => m.item);
 
   if (!matches.length) {
     searchResults.innerHTML = '<li class="search-no-result">No matching sites</li>';
@@ -1068,18 +1088,22 @@ function runSearch(query) {
     const li = document.createElement('li');
     li.className = 'search-result-item';
 
-    // Highlight the matched portion of the name
+    // Highlight the matched portion of the name if the query is in the name;
+    // otherwise show the name plain (the match was on area/description).
     const name = item.sitename;
     const idx  = name.toLowerCase().indexOf(q);
-    const before = name.slice(0, idx);
-    const hit    = name.slice(idx, idx + q.length);
-    const after  = name.slice(idx + q.length);
+    let nameHtml;
+    if (idx >= 0) {
+      nameHtml = `${name.slice(0, idx)}<mark>${name.slice(idx, idx + q.length)}</mark>${name.slice(idx + q.length)}`;
+    } else {
+      nameHtml = name;
+    }
 
     const area = item.site.area ? `<span class="search-result-area">${item.site.area}</span>` : '';
     const soon = !item.complete ? '<span class="search-result-soon">coming soon</span>' : '';
 
     li.innerHTML = `
-      <span class="search-result-name">${before}<mark>${hit}</mark>${after}</span>
+      <span class="search-result-name">${nameHtml}</span>
       ${area}${soon}`;
 
     li.addEventListener('click', () => selectSearchResult(item));
