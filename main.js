@@ -44,10 +44,29 @@ const map = L.map('map', {
 });
 
 // CartoDB Voyager — free, no key, no account
-L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+const baseTiles = L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
   attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
   maxZoom: 19,
-}).addTo(map);
+  subdomains: 'abcd',      // spread requests across 4 servers (faster, fewer rate limits)
+  keepBuffer: 6,           // keep more off-screen tiles cached so panning back is instant
+  updateWhenIdle: false,   // load tiles continuously while panning, not only after stopping
+  updateWhenZooming: false,// don't thrash tile requests mid-zoom
+  crossOrigin: true,
+});
+
+// Retry tiles that fail to load (instead of leaving them grey)
+baseTiles.on('tileerror', (e) => {
+  const tile = e.tile;
+  const retries = parseInt(tile.dataset.retries || '0', 10);
+  if (retries < 2) {
+    tile.dataset.retries = String(retries + 1);
+    const src = tile.src;
+    // Force a reload by re-assigning the src after a short delay
+    setTimeout(() => { tile.src = src.includes('?') ? src : src + '?r=' + Date.now(); }, 600);
+  }
+});
+
+baseTiles.addTo(map);
 
 // Fix Leaflet default icon 401 errors on GitHub Pages
 delete L.Icon.Default.prototype._getIconUrl;
