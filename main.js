@@ -3,11 +3,33 @@
  * main.js
  */
 
-const CSV_PATH      = 'sites.csv';
+// ─────────────────────────────────────────────
+//  DATA SOURCE
+// ─────────────────────────────────────────────
+// The site data is read from a published Google Sheet (CSV format).
+// To update sites, edit the Google Sheet — changes appear on the map
+// within a few minutes (Google caches the published feed briefly).
+//
+// HOW TO POINT THIS AT YOUR SHEET:
+//   1. In Google Sheets: File → Share → Publish to web
+//   2. Choose the sheet tab + "Comma-separated values (.csv)"
+//   3. Publish, copy the URL, and paste it below as GOOGLE_SHEET_CSV
+//
+// FALLBACK: to use the local sites.csv file instead (e.g. for testing
+// offline or if the Sheet is unavailable), set USE_GOOGLE_SHEET = false.
+
+const USE_GOOGLE_SHEET = true;
+const GOOGLE_SHEET_CSV  = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQKpT1LAcBqkKwIjtQ8AdhuCadAGOXzZ1s_ANfeLPVBK2tU3-Ed8qvUyAStIg836tomqktj12tT7yas/pub?gid=1629256792&single=true&output=csv';
+const LOCAL_CSV         = 'sites.csv';
+
+const CSV_PATH      = USE_GOOGLE_SHEET ? GOOGLE_SHEET_CSV : LOCAL_CSV;
 const MAP_CENTER    = [47.70, -122.68];
 const MAP_ZOOM      = 10;
 const EBIRD_API_KEY = 'tjd5dj8076eb';
 const EBIRD_BASE    = 'https://api.ebird.org/v2';
+
+// Searchable index of sites: { sitename, site, marker, lat, lng }
+let searchIndex = [];
 
 // ─────────────────────────────────────────────
 //  MAP INIT
@@ -957,6 +979,7 @@ Papa.parse(CSV_PATH, {
     const renderMarkers = () => {
       kitsapSitesLayer.clearLayers();
       otherSitesLayer.clearLayers();
+      searchIndex = [];
 
       sites.forEach(site => {
         const lat = parseFloat(site.lat);
@@ -992,14 +1015,22 @@ Papa.parse(CSV_PATH, {
             activeMarker = marker;
             openPanel(site);
           });
+
+          searchIndex.push({
+            sitename: site.sitename || '', site, marker, lat, lng, complete: true,
+          });
         } else {
-          L.marker([lat, lng], { icon: incompleteIcon })
+          const marker = L.marker([lat, lng], { icon: incompleteIcon })
             .addTo(target)
             .bindTooltip(`${site.sitename || 'Unnamed site'} <span class="tooltip-coming-soon">coming soon</span>`, {
               permanent: false, direction: 'top',
               className: 'site-tooltip site-tooltip--incomplete',
               offset: [0, -8],
             });
+
+          searchIndex.push({
+            sitename: site.sitename || '', site, marker, lat, lng, complete: false,
+          });
         }
       });
     };
@@ -1014,6 +1045,112 @@ Papa.parse(CSV_PATH, {
     }
   },
   error: err => console.error('CSV error:', err),
+});
+
+// ─────────────────────────────────────────────
+//  SITE SEARCH (type-ahead)
+// ─────────────────────────────────────────────
+const searchInput   = document.getElementById('search-input');
+const searchResults = document.getElementById('search-results');
+const searchClear   = document.getElementById('search-clear');
+
+function runSearch(query) {
+  const q = query.trim().toLowerCase();
+  searchClear.style.display = q ? '' : 'none';
+
+  if (!q) {
+    searchResults.style.display = 'none';
+    searchResults.innerHTML = '';
+    return;
+  }
+
+  // Match site names; prioritize names that start with the query
+  const matches = searchIndex
+    .filter(item => item.sitename.toLowerCase().includes(q))
+    .sort((a, b) => {
+      const aStarts = a.sitename.toLowerCase().startsWith(q) ? 0 : 1;
+      const bStarts = b.sitename.toLowerCase().startsWith(q) ? 0 : 1;
+      if (aStarts !== bStarts) return aStarts - bStarts;
+      return a.sitename.localeCompare(b.sitename);
+    })
+    .slice(0, 8);
+
+  if (!matches.length) {
+    searchResults.innerHTML = '<li class="search-no-result">No matching sites</li>';
+    searchResults.style.display = '';
+    return;
+  }
+
+  searchResults.innerHTML = '';
+  matches.forEach(item => {
+    const li = document.createElement('li');
+    li.className = 'search-result-item';
+
+    // Highlight the matched portion of the name
+    const name = item.sitename;
+    const idx  = name.toLowerCase().indexOf(q);
+    const before = name.slice(0, idx);
+    const hit    = name.slice(idx, idx + q.length);
+    const after  = name.slice(idx + q.length);
+
+    const area = item.site.area ? `<span class="search-result-area">${item.site.area}</span>` : '';
+    const soon = !item.complete ? '<span class="search-result-soon">coming soon</span>' : '';
+
+    li.innerHTML = `
+      <span class="search-result-name">${before}<mark>${hit}</mark>${after}</span>
+      ${area}${soon}`;
+
+    li.addEventListener('click', () => selectSearchResult(item));
+    searchResults.appendChild(li);
+  });
+  searchResults.style.display = '';
+}
+
+function selectSearchResult(item) {
+  searchInput.value = item.sitename;
+  searchResults.style.display = 'none';
+
+  // Pan/zoom the map to the site
+  const targetZoom = Math.max(map.getZoom(), 14);
+  map.setView([item.lat, item.lng], targetZoom, { animate: true });
+
+  // Open its detail panel if it's a complete site; otherwise just show tooltip
+  if (item.complete) {
+    activeMarker = item.marker;
+    openPanel(item.site);
+  } else {
+    item.marker.openTooltip();
+  }
+
+  // On mobile, blur the input so the keyboard closes
+  searchInput.blur();
+}
+
+searchInput.addEventListener('input', (e) => runSearch(e.target.value));
+
+searchInput.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') {
+    const first = searchResults.querySelector('.search-result-item');
+    if (first) first.click();
+  }
+  if (e.key === 'Escape') {
+    searchInput.value = '';
+    runSearch('');
+    searchInput.blur();
+  }
+});
+
+searchClear.addEventListener('click', () => {
+  searchInput.value = '';
+  runSearch('');
+  searchInput.focus();
+});
+
+// Close results when clicking outside the search box
+document.addEventListener('click', (e) => {
+  if (!document.getElementById('site-search').contains(e.target)) {
+    searchResults.style.display = 'none';
+  }
 });
 
 // ─────────────────────────────────────────────

@@ -55,6 +55,8 @@ a:hover { text-decoration: underline; }
   background: var(--navy);
   display: flex;
   align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
   padding: 0 1.25rem;
   box-shadow: 0 2px 8px rgba(0,0,0,0.3);
   z-index: 1000;
@@ -66,6 +68,7 @@ a:hover { text-decoration: underline; }
   display: flex;
   align-items: center;
   gap: 0.65rem;
+  min-width: 0;
 }
 
 .logo-img {
@@ -164,6 +167,127 @@ a:hover { text-decoration: underline; }
 }
 .marker-pin--subdued:hover {
   box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+}
+
+/* ─── SITE SEARCH (in header) ────────────────── */
+.site-search {
+  position: relative;
+  width: min(260px, 45vw);
+  flex-shrink: 0;
+}
+
+.search-input-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  background: var(--white);
+  border-radius: 20px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+  padding: 0 0.4rem 0 0.7rem;
+}
+
+.search-icon {
+  width: 15px;
+  height: 15px;
+  color: var(--text-light);
+  flex-shrink: 0;
+}
+
+.search-input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  outline: none;
+  background: none;
+  padding: 0.4rem 0.4rem;
+  font-size: 0.82rem;
+  font-family: inherit;
+  color: var(--text);
+}
+.search-input::placeholder { color: var(--text-light); }
+
+.search-clear {
+  background: none;
+  border: none;
+  color: var(--text-light);
+  font-size: 1.2rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 0.3rem;
+  border-radius: 50%;
+  transition: color var(--transition);
+}
+.search-clear:hover { color: var(--text); }
+
+.search-results {
+  position: absolute;
+  top: calc(100% + 0.4rem);
+  right: 0;
+  width: max(260px, 100%);
+  list-style: none;
+  margin: 0;
+  background: var(--white);
+  border-radius: 10px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.25);
+  overflow: hidden;
+  max-height: 320px;
+  overflow-y: auto;
+  z-index: 1001;
+}
+
+.search-result-item {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  padding: 0.6rem 0.85rem;
+  cursor: pointer;
+  border-bottom: 1px solid var(--rule);
+  transition: background var(--transition);
+}
+.search-result-item:last-child { border-bottom: none; }
+.search-result-item:hover { background: var(--off-white); }
+
+.search-result-name {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--text);
+}
+.search-result-name mark {
+  background: #fde9b8;
+  color: inherit;
+  padding: 0 1px;
+  border-radius: 2px;
+}
+
+.search-result-area {
+  font-size: 0.72rem;
+  color: var(--text-light);
+  margin-left: auto;
+  white-space: nowrap;
+}
+
+.search-result-soon {
+  font-size: 0.65rem;
+  font-style: italic;
+  color: var(--text-light);
+  background: var(--off-white);
+  padding: 1px 6px;
+  border-radius: 10px;
+  white-space: nowrap;
+}
+
+.search-no-result {
+  padding: 0.7rem 0.85rem;
+  font-size: 0.85rem;
+  color: var(--text-light);
+  font-style: italic;
+}
+
+/* On small screens, let the logo shrink and keep search usable */
+@media (max-width: 767px) {
+  .logo-text { font-size: 0.8rem; }
+  .site-search { width: min(160px, 42vw); }
+  .search-input { font-size: 0.78rem; }
 }
 
 /* ─── INFO BUTTON + MODAL ────────────────────── */
