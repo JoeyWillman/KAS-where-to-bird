@@ -462,43 +462,6 @@ document.getElementById('toggle-rarities').addEventListener('click', async () =>
 
 
 // ─────────────────────────────────────────────
-//  KITSAP COUNTY MASK
-// ─────────────────────────────────────────────
-async function addKitsapMask() {
-  try {
-    const res = await fetch(
-      'https://nominatim.openstreetmap.org/search?q=Kitsap+County%2C+Washington%2C+USA&format=geojson&polygon_geojson=1&limit=1'
-    );
-    const data = await res.json();
-    if (!data.features.length) return;
-
-    const geom = data.features[0].geometry;
-    const world = [[-90, -180], [-90, 180], [90, 180], [90, -180]];
-    const holes = [];
-
-    if (geom.type === 'Polygon') {
-      holes.push(geom.coordinates[0].map(([lng, lat]) => [lat, lng]));
-    } else if (geom.type === 'MultiPolygon') {
-      geom.coordinates.forEach(polygon =>
-        holes.push(polygon[0].map(([lng, lat]) => [lat, lng]))
-      );
-    }
-
-    L.polygon([world, ...holes], {
-      stroke: false,
-      fillColor: '#1a2b3c',
-      fillOpacity: 0.18,
-      interactive: false,
-    }).addTo(map);
-
-  } catch (err) {
-    console.error('Kitsap mask fetch failed:', err);
-  }
-}
-
-addKitsapMask();
-
-// ─────────────────────────────────────────────
 //  DOM REFS
 // ─────────────────────────────────────────────
 const panel          = document.getElementById('detail-panel');
