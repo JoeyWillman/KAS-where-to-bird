@@ -888,8 +888,20 @@ document.getElementById('rarities-drawer-close').addEventListener('click', dismi
 // One API call per hotspot is heavy, so results are cached for 24 hours.
 
 const ACTIVITY_DAYS      = 3;
-const ACTIVITY_CACHE_KEY = 'kasRecentActivity';
-const ACTIVITY_TTL_MS    = 24 * 60 * 60 * 1000; // 24 hours
+const ACTIVITY_CACHE_KEY = 'kasRecentActivity_v2';
+const ACTIVITY_TTL_MS    = 3 * 60 * 60 * 1000; // 3 hours — balances freshness vs. API load
+
+// eBird date fields vary by endpoint. The checklist-feed (/product/lists)
+// provides `isoObsDate` (reliable ISO) plus `obsDt` (often day-only or
+// "DD Mon YYYY" text). Prefer isoObsDate; fall back to normalizing obsDt.
+function parseEbirdDate(str) {
+  if (!str) return null;
+  let s = String(str).trim();
+  // Space-separated "2026-06-11 08:30" → ISO "2026-06-11T08:30"
+  if (/^\d{4}-\d{2}-\d{2}\s/.test(s)) s = s.replace(' ', 'T');
+  let d = new Date(s);
+  return isNaN(d) ? null : d;
+}
 
 // Does this hotspot have any checklist in the last ACTIVITY_DAYS days?
 async function hasRecentChecklist(hotspotId) {
@@ -900,10 +912,17 @@ async function hasRecentChecklist(hotspotId) {
     );
     if (!res.ok) return false;
     const lists = await res.json();
-    const cutoff = Date.now() - ACTIVITY_DAYS * 24 * 60 * 60 * 1000;
+    // Compare on date only (strip time) to avoid timezone edge effects.
+    const today = new Date();
+    const cutoff = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    cutoff.setDate(cutoff.getDate() - (ACTIVITY_DAYS - 1)); // inclusive window
+
     return lists.some(l => {
-      const d = new Date(l.obsDt);
-      return !isNaN(d) && d.getTime() >= cutoff;
+      const d = parseEbirdDate(l.isoObsDate || l.obsDt);
+      if (!d) return false;
+      // Normalize to midnight for a clean date comparison
+      const dd = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+      return dd.getTime() >= cutoff.getTime();
     });
   } catch (err) {
     console.error('Activity check failed for', hotspotId, err);
@@ -930,6 +949,9 @@ async function getActiveHotspots(hotspotIds) {
     })));
     results.forEach(r => { if (r.active) active.push(r.id); });
   }
+
+  // Diagnostic — remove once confirmed working
+  console.log(`[KAS] Checked ${hotspotIds.length} hotspots, ${active.length} active in last ${ACTIVITY_DAYS} days:`, active);
 
   try {
     localStorage.setItem(ACTIVITY_CACHE_KEY, JSON.stringify({ ts: Date.now(), active }));
