@@ -881,177 +881,75 @@ map.on('click', closePanel);
 // Rarities drawer close button — fully dismisses the rarities layer + drawer
 document.getElementById('rarities-drawer-close').addEventListener('click', dismissRarities);
 
-// ─────────────────────────────────────────────
-//  RECENT ACTIVITY (sites with a checklist in the last 3 days)
-// ─────────────────────────────────────────────
-// A site is "active" if it has at least one eBird checklist in the window.
-// One API call per hotspot is heavy, so results are cached for 24 hours.
-
-const ACTIVITY_DAYS      = 3;
-const ACTIVITY_CACHE_KEY = 'kasRecentActivity_v2';
-const ACTIVITY_TTL_MS    = 3 * 60 * 60 * 1000; // 3 hours — balances freshness vs. API load
-
-// eBird date fields vary by endpoint. The checklist-feed (/product/lists)
-// provides `isoObsDate` (reliable ISO) plus `obsDt` (often day-only or
-// "DD Mon YYYY" text). Prefer isoObsDate; fall back to normalizing obsDt.
-function parseEbirdDate(str) {
-  if (!str) return null;
-  let s = String(str).trim();
-  // Space-separated "2026-06-11 08:30" → ISO "2026-06-11T08:30"
-  if (/^\d{4}-\d{2}-\d{2}\s/.test(s)) s = s.replace(' ', 'T');
-  let d = new Date(s);
-  return isNaN(d) ? null : d;
-}
-
-// Does this hotspot have any checklist in the last ACTIVITY_DAYS days?
-async function hasRecentChecklist(hotspotId) {
-  try {
-    const res = await fetch(
-      `${EBIRD_BASE}/product/lists/${hotspotId}?maxResults=200`,
-      { headers: { 'X-eBirdApiToken': EBIRD_API_KEY } }
-    );
-    if (!res.ok) return false;
-    const lists = await res.json();
-    // Compare on date only (strip time) to avoid timezone edge effects.
-    const today = new Date();
-    const cutoff = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-    cutoff.setDate(cutoff.getDate() - (ACTIVITY_DAYS - 1)); // inclusive window
-
-    return lists.some(l => {
-      const d = parseEbirdDate(l.isoObsDate || l.obsDt);
-      if (!d) return false;
-      // Normalize to midnight for a clean date comparison
-      const dd = new Date(d.getFullYear(), d.getMonth(), d.getDate());
-      return dd.getTime() >= cutoff.getTime();
-    });
-  } catch (err) {
-    console.error('Activity check failed for', hotspotId, err);
-    return false;
-  }
-}
-
-// Returns a Set of hotspot IDs that have recent activity.
-// Cached for 24h so we don't hammer the API on every load.
-async function getActiveHotspots(hotspotIds) {
-  try {
-    const cached = JSON.parse(localStorage.getItem(ACTIVITY_CACHE_KEY) || 'null');
-    if (cached && (Date.now() - cached.ts) < ACTIVITY_TTL_MS && Array.isArray(cached.active)) {
-      return new Set(cached.active);
-    }
-  } catch (_) { /* ignore bad cache */ }
-
-  const active = [];
-  const BATCH = 6;
-  for (let i = 0; i < hotspotIds.length; i += BATCH) {
-    const batch = hotspotIds.slice(i, i + BATCH);
-    const results = await Promise.all(batch.map(async id => ({
-      id, active: await hasRecentChecklist(id),
-    })));
-    results.forEach(r => { if (r.active) active.push(r.id); });
-  }
-
-  // Diagnostic — remove once confirmed working
-  console.log(`[KAS] Checked ${hotspotIds.length} hotspots, ${active.length} active in last ${ACTIVITY_DAYS} days:`, active);
-
-  try {
-    localStorage.setItem(ACTIVITY_CACHE_KEY, JSON.stringify({ ts: Date.now(), active }));
-  } catch (_) { /* storage may be unavailable */ }
-
-  return new Set(active);
-}
-
-
 Papa.parse(CSV_PATH, {
   download: true,
   header: true,
   skipEmptyLines: true,
-  complete: async ({ data: sites }) => {
+  complete: ({ data: sites }) => {
     const loadingEl = document.getElementById('map-loading');
     if (!sites.length) {
       if (loadingEl) loadingEl.style.display = 'none';
       return;
     }
 
-    // Collect hotspot IDs from complete Kitsap sites for popularity ranking
-    const rankableIds = sites
-      .filter(s => (s.complete || '').trim() === 'x'
-                && (s.county || '').trim() === 'Kitsap'
-                && (s.ebird_hotspot_id || '').trim()
-                && !(s.ebird_hotspot_id || '').trim().startsWith('PLACEHOLDER'))
-      .map(s => s.ebird_hotspot_id.trim());
+    kitsapSitesLayer.clearLayers();
+    otherSitesLayer.clearLayers();
+    searchIndex = [];
 
-    // Kick off activity check (cached daily). Render markers immediately with
-    // a fallback so the map isn't blocked if the API is slow; re-style once
-    // the active set resolves.
-    let activeSet = new Set();
-    const renderMarkers = () => {
-      kitsapSitesLayer.clearLayers();
-      otherSitesLayer.clearLayers();
-      searchIndex = [];
+    sites.forEach(site => {
+      const lat = parseFloat(site.lat);
+      const lng = parseFloat(site.lng);
+      if (isNaN(lat) || isNaN(lng)) return;
 
-      sites.forEach(site => {
-        const lat = parseFloat(site.lat);
-        const lng = parseFloat(site.lng);
-        if (isNaN(lat) || isNaN(lng)) return;
+      const isComplete = (site.complete || '').trim() === 'x';
+      const isKitsap   = (site.county  || '').trim() === 'Kitsap';
+      const isTop      = (site.top     || '').trim().toLowerCase() === 'x';
+      const target     = isKitsap ? kitsapSitesLayer : otherSitesLayer;
 
-        const isComplete = (site.complete || '').trim() === 'x';
-        const isKitsap   = (site.county  || '').trim() === 'Kitsap';
-        const target     = isKitsap ? kitsapSitesLayer : otherSitesLayer;
-        const hotspotId  = (site.ebird_hotspot_id || '').trim();
-
-        if (isComplete) {
-          // Sites with a checklist in the last 3 days get the full marker;
-          // other complete Kitsap sites get the subdued marker.
-          let markerIcon, tooltipOffset;
-          if (isKitsap) {
-            const isActive = activeSet.has(hotspotId);
-            markerIcon    = isActive ? birdIcon : subduedIcon;
-            tooltipOffset = isActive ? [0, -28] : [0, -20];
-          } else {
-            markerIcon    = outOfCountyIcon;
-            tooltipOffset = [0, -8];
-          }
-
-          const marker = L.marker([lat, lng], { icon: markerIcon })
-            .addTo(target)
-            .bindTooltip(site.sitename || '', {
-              permanent: false, direction: 'top',
-              className: 'site-tooltip', offset: tooltipOffset,
-            });
-          marker.on('click', (e) => {
-            L.DomEvent.stopPropagation(e);
-            activeMarker = marker;
-            openPanel(site);
-          });
-
-          searchIndex.push({
-            sitename: site.sitename || '', site, marker, lat, lng, complete: true,
-          });
+      if (isComplete) {
+        // Highlighted (top) Kitsap sites get the full marker; other complete
+        // Kitsap sites get the subdued marker. Highlighting is set manually
+        // via the "top" column in the spreadsheet (x = highlighted).
+        let markerIcon, tooltipOffset;
+        if (isKitsap) {
+          markerIcon    = isTop ? birdIcon : subduedIcon;
+          tooltipOffset = isTop ? [0, -28] : [0, -20];
         } else {
-          const marker = L.marker([lat, lng], { icon: incompleteIcon })
-            .addTo(target)
-            .bindTooltip(`${site.sitename || 'Unnamed site'} <span class="tooltip-coming-soon">coming soon</span>`, {
-              permanent: false, direction: 'top',
-              className: 'site-tooltip site-tooltip--incomplete',
-              offset: [0, -8],
-            });
-
-          searchIndex.push({
-            sitename: site.sitename || '', site, marker, lat, lng, complete: false,
-          });
+          markerIcon    = outOfCountyIcon;
+          tooltipOffset = [0, -8];
         }
-      });
-    };
 
-    // First render with no activity data (all complete Kitsap sites subdued)
-    renderMarkers();
+        const marker = L.marker([lat, lng], { icon: markerIcon })
+          .addTo(target)
+          .bindTooltip(site.sitename || '', {
+            permanent: false, direction: 'top',
+            className: 'site-tooltip', offset: tooltipOffset,
+          });
+        marker.on('click', (e) => {
+          L.DomEvent.stopPropagation(e);
+          activeMarker = marker;
+          openPanel(site);
+        });
+
+        searchIndex.push({
+          sitename: site.sitename || '', site, marker, lat, lng, complete: true,
+        });
+      } else {
+        const marker = L.marker([lat, lng], { icon: incompleteIcon })
+          .addTo(target)
+          .bindTooltip(`${site.sitename || 'Unnamed site'} <span class="tooltip-coming-soon">coming soon</span>`, {
+            permanent: false, direction: 'top',
+            className: 'site-tooltip site-tooltip--incomplete',
+            offset: [0, -8],
+          });
+
+        searchIndex.push({
+          sitename: site.sitename || '', site, marker, lat, lng, complete: false,
+        });
+      }
+    });
+
     if (loadingEl) loadingEl.style.display = 'none';
-
-    // Then check recent activity and re-render with active sites highlighted
-    if (rankableIds.length) {
-      activeSet = await getActiveHotspots(rankableIds);
-      renderMarkers();
-    }
   },
   error: err => {
     console.error('CSV error:', err);
