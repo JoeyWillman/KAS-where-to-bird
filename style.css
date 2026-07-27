@@ -598,8 +598,12 @@ a:hover { text-decoration: underline; }
   object-position: center;
   opacity: 0;
   transition: opacity 0.45s ease;
-  /* Subtle sharpening via filter for low-quality uploads */
+  /* Hint browsers toward higher-quality downscaling of large photos */
+  image-rendering: -webkit-optimize-contrast;
   image-rendering: auto;
+  -ms-interpolation-mode: bicubic;
+  backface-visibility: hidden;
+  transform: translateZ(0);
 }
 .slide-img.active { opacity: 1; }
 
