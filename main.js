@@ -44,7 +44,7 @@ const map = L.map('map', {
 });
 
 // CartoDB Voyager — free, no key, no account
-const baseTiles = L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+const baseTiles = L.tileLayer('https://basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png?key=cb1_27a3_1_eff8648ee0beaf74f4f56673', {
   attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
   maxZoom: 19,
   subdomains: 'abcd',      // spread requests across 4 servers (faster, fewer rate limits)
